@@ -1,0 +1,57 @@
+@media (max-width: 760px) {
+  .app-shell {
+    align-items: stretch;
+    padding: 14px;
+  }
+
+  .translator {
+    padding: 22px;
+  }
+
+  .app-header {
+    display: grid;
+  }
+
+  .status-pill {
+    justify-self: start;
+  }
+
+  .result-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .text-panel {
+    min-height: 220px;
+  }
+
+  .primary-button,
+  .secondary-button,
+  .ghost-button {
+    width: 100%;
+  }
+
+  .playback-header,
+  .voice-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .voice-picker {
+    width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .translator {
+    padding: 18px;
+  }
+
+  .panel-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .text-output {
+    font-size: 1.05rem;
+  }
+}

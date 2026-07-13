@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="A lightweight browser voice translator for English speech to Thai text."
+    />
+    <title>AI Voice Translator</title>
+    <link rel="stylesheet" href="./css/base.css" />
+    <link rel="stylesheet" href="./css/theme.css" />
+    <link rel="stylesheet" href="./css/layout.css" />
+    <link rel="stylesheet" href="./css/components.css" />
+    <link rel="stylesheet" href="./css/responsive.css" />
+  </head>
+  <body>
+    <main class="app-shell" aria-labelledby="app-title">
+      <section class="translator" aria-label="English speech to Thai translator">
+        <header class="app-header">
+          <div>
+            <p class="eyebrow">Phase 2 MVP</p>
+            <h1 id="app-title">AI Voice Translator</h1>
+            <p class="subtitle">English speech to Thai text</p>
+          </div>
+          <div class="status-pill" id="statusPill" role="status" aria-live="polite">
+            Ready
+          </div>
+        </header>
+
+        <section class="controls" aria-label="Recording controls">
+          <button class="primary-button" id="recordButton" type="button">
+            <span class="button-icon" aria-hidden="true"></span>
+            Start Recording
+          </button>
+          <button class="secondary-button" id="stopButton" type="button" disabled>
+            Stop
+          </button>
+        </section>
+
+        <section class="notice" id="supportNotice" hidden>
+          Speech recognition is not supported in this browser. Please use Chrome
+          or Microsoft Edge for the MVP.
+        </section>
+
+        <section class="result-grid" aria-label="Translation result">
+          <article class="text-panel">
+            <div class="panel-heading">
+              <h2>Original English</h2>
+              <span id="transcriptCount">0 characters</span>
+            </div>
+            <p
+              class="text-output placeholder"
+              id="originalText"
+              aria-live="polite"
+            >
+              Your recognized English text will appear here.
+            </p>
+          </article>
+
+          <article class="text-panel">
+            <div class="panel-heading">
+              <h2>Thai Translation</h2>
+              <span id="translationCount">0 characters</span>
+            </div>
+            <p
+              class="text-output placeholder thai-text"
+              id="translatedText"
+              aria-live="polite"
+            >
+              คำแปลภาษาไทยจะแสดงที่นี่
+            </p>
+          </article>
+        </section>
+
+        <section class="action-row" aria-label="Text actions">
+          <button class="secondary-button" id="copyButton" type="button" disabled>
+            Copy Thai Text
+          </button>
+          <button class="ghost-button" id="clearButton" type="button">
+            Clear
+          </button>
+        </section>
+
+        <section class="playback-panel" aria-label="Text to speech controls">
+          <div class="playback-header">
+            <h2>Thai Speech Playback</h2>
+            <label class="toggle-control" for="autoSpeakToggle">
+              <input id="autoSpeakToggle" type="checkbox" />
+              Auto Speak
+            </label>
+          </div>
+
+          <div class="voice-row">
+            <label for="voiceSelect">Voice</label>
+            <div class="voice-picker">
+              <select id="voiceSelect" name="voiceSelect">
+                <option value="">Auto Thai voice</option>
+              </select>
+              <button class="ghost-button compact-button" id="refreshVoicesButton" type="button">
+                Refresh
+              </button>
+            </div>
+          </div>
+
+          <div class="playback-controls">
+            <button class="secondary-button" id="speakButton" type="button" disabled>
+              Speak
+            </button>
+            <button class="secondary-button" id="pauseSpeechButton" type="button" disabled>
+              Pause
+            </button>
+            <button class="secondary-button" id="resumeSpeechButton" type="button" disabled>
+              Resume
+            </button>
+            <button class="ghost-button" id="stopSpeechButton" type="button" disabled>
+              Stop
+            </button>
+          </div>
+        </section>
+
+        <details class="settings-panel">
+          <summary>Translation settings</summary>
+          <label for="apiEndpoint">LibreTranslate endpoint</label>
+          <input
+            id="apiEndpoint"
+            name="apiEndpoint"
+            type="url"
+            autocomplete="off"
+          />
+          <label for="apiKey">API key, if your endpoint requires one</label>
+          <input
+            id="apiKey"
+            name="apiKey"
+            type="password"
+            autocomplete="off"
+            placeholder="Optional"
+          />
+        </details>
+      </section>
+    </main>
+
+    <div class="toast-region" id="toastRegion" aria-live="polite" aria-label="Notifications"></div>
+
+    <script type="module" src="./js/app.js"></script>
+  </body>
+</html>

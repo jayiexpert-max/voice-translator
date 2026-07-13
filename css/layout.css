@@ -1,0 +1,101 @@
+.app-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 32px;
+}
+
+.translator {
+  width: min(960px, 100%);
+  border-radius: 8px;
+  padding: 32px;
+}
+
+.app-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 28px;
+}
+
+.controls,
+.action-row,
+.playback-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.result-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.text-panel {
+  min-height: 260px;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.settings-panel {
+  margin-top: 24px;
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.playback-panel {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+  border-radius: 8px;
+  padding: 18px;
+}
+
+.playback-header,
+.voice-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.voice-row {
+  align-items: flex-end;
+}
+
+.voice-picker {
+  display: flex;
+  width: min(520px, 100%);
+  gap: 10px;
+}
+
+.voice-picker select {
+  width: min(520px, 100%);
+}
+
+.settings-panel[open] {
+  display: grid;
+  gap: 10px;
+}
+
+.toast-region {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 10;
+  display: grid;
+  width: min(360px, calc(100vw - 36px));
+  gap: 10px;
+}
