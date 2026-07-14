@@ -1,3 +1,8 @@
+const SPEAK_AFTER_CANCEL_DELAY_MS = 120;
+
+let activeUtterance = null;
+let pendingSpeakTimer = null;
+
 export function isTextToSpeechSupported() {
   return "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
 }
@@ -66,26 +71,55 @@ export function speakText({
     throw new Error("There is no translated text to speak.");
   }
 
+  clearActiveUtterance();
   window.speechSynthesis.cancel();
 
   const utterance = new SpeechSynthesisUtterance(normalizedText);
+  activeUtterance = utterance;
   utterance.lang = languageCode;
   utterance.rate = 0.95;
   utterance.pitch = 1;
 
-  const voice = getPreferredVoice(voices, languageCode, voiceURI);
+  const browserVoices = window.speechSynthesis.getVoices();
+  const availableVoices = browserVoices.length > 0 ? browserVoices : voices;
+  const voice = getPreferredVoice(availableVoices, languageCode, voiceURI);
 
   if (voice) {
     utterance.voice = voice;
   }
 
-  utterance.onstart = () => onStart?.(voice);
-  utterance.onend = () => onEnd?.();
+  utterance.onstart = () => {
+    if (activeUtterance === utterance) {
+      onStart?.(voice);
+    }
+  };
+  utterance.onend = () => {
+    if (activeUtterance !== utterance) {
+      return;
+    }
+
+    activeUtterance = null;
+    onEnd?.();
+  };
   utterance.onerror = (event) => {
+    if (activeUtterance !== utterance) {
+      return;
+    }
+
+    activeUtterance = null;
     onError?.(new Error(`Speech playback failed (${event.error}).`));
   };
 
-  window.speechSynthesis.speak(utterance);
+  pendingSpeakTimer = window.setTimeout(() => {
+    pendingSpeakTimer = null;
+
+    if (activeUtterance !== utterance) {
+      return;
+    }
+
+    window.speechSynthesis.resume();
+    window.speechSynthesis.speak(utterance);
+  }, SPEAK_AFTER_CANCEL_DELAY_MS);
 
   return utterance;
 }
@@ -104,6 +138,21 @@ export function resumeSpeech() {
 
 export function stopSpeech() {
   if (isTextToSpeechSupported()) {
+    clearActiveUtterance();
     window.speechSynthesis.cancel();
   }
+}
+
+function clearActiveUtterance() {
+  window.clearTimeout(pendingSpeakTimer);
+  pendingSpeakTimer = null;
+
+  if (!activeUtterance) {
+    return;
+  }
+
+  activeUtterance.onstart = null;
+  activeUtterance.onend = null;
+  activeUtterance.onerror = null;
+  activeUtterance = null;
 }

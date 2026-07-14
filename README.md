@@ -10,9 +10,9 @@ English speech to Thai text:
 - Display recognized English text continuously like subtitle lines.
 - Remove older subtitle lines as new translations arrive.
 - Translate English to Thai with provider fallback.
-- Fall back to English-to-Thai transliteration only when translation providers fail.
+- Reject failed translations instead of displaying phonetic transliteration as if it were a translation.
 - Speak translated Thai text through the SpeechSynthesis API.
-- Auto speak translated text when enabled.
+- Keep automatic speech paused while live translation performance is prioritized.
 - Select a browser voice.
 - Refresh Chrome browser voices when the voice list is empty.
 - Pause, resume, and stop speech playback.
@@ -44,7 +44,7 @@ https://translate.fedilab.app/translate
 
 The official hosted endpoint, `https://libretranslate.com/translate`, currently requires an API key. Some mirrors can also be rate-limited or unavailable. Open **Translation settings** in the app to change the endpoint or enter an API key.
 
-For English-to-Thai mode, the app tries a MyMemory translation endpoint first, then the configured LibreTranslate-compatible endpoint. If both fail or return unusable text, the app displays Thai transliteration so the user still gets a pronunciation-style result.
+For English-to-Thai mode, the live path first uses the fast Google Translate web endpoint. If it fails, the app requests MyMemory and the configured LibreTranslate-compatible endpoint in parallel and uses the first usable translation. If every provider fails or returns unusable text, the app reports the failure instead of presenting phonetic transliteration as a translation.
 
 For production, use a serverless proxy on Netlify, Vercel, or Cloudflare Pages to protect API keys and normalize provider errors.
 

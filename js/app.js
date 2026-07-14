@@ -13,7 +13,6 @@ import {
   stopSpeech,
 } from "./services/textToSpeechService.js";
 import { translateText } from "./services/translationService.js";
-import { canTransliterate, transliterateEnglishToThai } from "./services/transliterationService.js";
 import { copyToClipboard } from "./utils/clipboard.js";
 import { getElement, setDisabled, setText } from "./utils/dom.js";
 
@@ -48,9 +47,25 @@ let ignoreRecognitionError = false;
 let lastNoSpeechNoticeAt = 0;
 let transcriptLines = [];
 let translationLines = [];
+let interimTranslationText = "";
+let pendingInterimTranslation = null;
+let pendingFinalTranslations = [];
+let completedFinalTranslations = new Map();
+let activeTranslationCount = 0;
+let translationSessionId = 0;
+let nextTranslationRequestId = 0;
+let nextFinalTranslationSequence = 0;
+let nextFinalSequenceToDisplay = 1;
+let latestAppliedInterimRequestId = 0;
+let latestQueuedFinalRequestId = 0;
+let lastInterimTranslationAt = 0;
+let lastQueuedTranslationText = "";
 
 const NO_SPEECH_NOTICE_COOLDOWN_MS = 4000;
 const MAX_SUBTITLE_LINES = 3;
+const INTERIM_TRANSLATION_INTERVAL_MS = 700;
+const INTERIM_TRANSLATION_WORD_LIMIT = 24;
+const MAX_CONCURRENT_TRANSLATIONS = 2;
 
 function getStoredEndpoint() {
   return localStorage.getItem(CONFIG.translationEndpointStorageKey) || CONFIG.translationEndpoint;
@@ -98,11 +113,15 @@ function render() {
   setDisabled(elements.stopSpeechButton, !ttsSupported || (!state.isSpeaking && !state.isSpeechPaused));
   setDisabled(elements.voiceSelect, !ttsSupported || state.voices.length === 0);
   setDisabled(elements.refreshVoicesButton, !ttsSupported);
-  setDisabled(elements.autoSpeakToggle, !ttsSupported);
+  setDisabled(elements.autoSpeakToggle, !ttsSupported || !CONFIG.autoSpeakEnabled);
 }
 
 function normalizeTranscript(text) {
   return text.trim().replace(/\s+/g, " ");
+}
+
+function getInterimTranslationWindow(text) {
+  return text.split(" ").slice(-INTERIM_TRANSLATION_WORD_LIMIT).join(" ");
 }
 
 function getTranscriptDelta(currentFinalTranscript) {
@@ -140,30 +159,23 @@ function appendTranslationLine(text) {
   translationLines.push(text);
   trimSubtitleLines();
   syncSubtitleText();
-
-  return translationLines.length - 1;
-}
-
-function setTranslationLine(index, text) {
-  translationLines[index] = text;
-  trimSubtitleLines();
-  syncSubtitleText();
 }
 
 function trimSubtitleLines() {
-  const overflow = Math.max(transcriptLines.length, translationLines.length) - MAX_SUBTITLE_LINES;
-
-  if (overflow <= 0) {
-    return;
-  }
-
-  transcriptLines = transcriptLines.slice(overflow);
-  translationLines = translationLines.slice(overflow);
+  transcriptLines = transcriptLines.slice(-MAX_SUBTITLE_LINES);
+  translationLines = translationLines.slice(-MAX_SUBTITLE_LINES);
 }
 
 function syncSubtitleText() {
   state.transcript = transcriptLines.slice(-MAX_SUBTITLE_LINES).join("\n");
-  state.translation = translationLines.slice(-MAX_SUBTITLE_LINES).filter(Boolean).join("\n");
+  state.translation = [...translationLines, interimTranslationText]
+    .filter(Boolean)
+    .slice(-MAX_SUBTITLE_LINES)
+    .join("\n");
+}
+
+function hasPendingTranslations() {
+  return pendingFinalTranslations.length > 0 || Boolean(pendingInterimTranslation);
 }
 
 function notifyNoSpeechDetected() {
@@ -194,6 +206,11 @@ function setSpeechIdleStatus() {
 
 function speakTranslation(text = state.translation) {
   try {
+    state.isSpeaking = true;
+    state.isSpeechPaused = false;
+    updateStatus(APP_STATUS.SPEAKING);
+    render();
+
     speakText({
       text,
       languageCode: TARGET_TTS_LANGUAGE,
@@ -217,16 +234,26 @@ function speakTranslation(text = state.translation) {
       },
     });
   } catch (error) {
+    setSpeechIdleStatus();
     showToast(error.message, "error");
   }
 }
 
-async function runTranslation(transcript) {
+async function runTranslation({
+  transcript,
+  sessionId,
+  requestId,
+  finalSequence,
+  shouldSpeak,
+  isInterim,
+}) {
+  if (sessionId !== translationSessionId) {
+    return;
+  }
+
   state.isTranslating = true;
   updateStatus(APP_STATUS.TRANSLATING);
-  const translationLineIndex = appendTranslationLine("Translating...");
   render();
-  let usedTransliterationFallback = false;
   let translatedLine = "";
 
   try {
@@ -242,24 +269,35 @@ async function runTranslation(transcript) {
       showToast("Translated to Thai.", "success");
     }
   } catch (error) {
-    if (canTransliterate(state.sourceLanguage, state.targetLanguage)) {
-      translatedLine = transliterateEnglishToThai(transcript);
-      usedTransliterationFallback = true;
-      showToast("Translation failed, so transliteration was used.", "info");
-    } else {
+    if (!isInterim) {
       updateStatus(APP_STATUS.ERROR);
       showToast(error.message, "error");
     }
   } finally {
-    if (translatedLine) {
-      setTranslationLine(translationLineIndex, translatedLine);
-    } else {
-      setTranslationLine(translationLineIndex, "");
+    if (sessionId !== translationSessionId) {
+      state.isTranslating = activeTranslationCount > 1 || hasPendingTranslations();
+      render();
+      return;
     }
 
-    state.isTranslating = false;
+    if (isInterim) {
+      if (
+        translatedLine &&
+        requestId > latestQueuedFinalRequestId &&
+        requestId >= latestAppliedInterimRequestId
+      ) {
+        latestAppliedInterimRequestId = requestId;
+        interimTranslationText = translatedLine;
+        syncSubtitleText();
+      }
+    } else {
+      completedFinalTranslations.set(finalSequence, translatedLine);
+      flushCompletedFinalTranslations();
+    }
 
-    if (translatedLine && state.autoSpeak && isTextToSpeechSupported()) {
+    state.isTranslating = activeTranslationCount > 1 || hasPendingTranslations();
+
+    if (translatedLine && shouldSpeak && state.autoSpeak && isTextToSpeechSupported()) {
       speakTranslation(translatedLine);
     }
 
@@ -269,11 +307,59 @@ async function runTranslation(transcript) {
       updateStatus(APP_STATUS.READY);
     }
 
-    if (usedTransliterationFallback && !state.isListening && !state.isSpeaking) {
-      updateStatus(APP_STATUS.READY);
+    render();
+  }
+}
+
+function flushCompletedFinalTranslations() {
+  while (completedFinalTranslations.has(nextFinalSequenceToDisplay)) {
+    const translatedLine = completedFinalTranslations.get(nextFinalSequenceToDisplay);
+    completedFinalTranslations.delete(nextFinalSequenceToDisplay);
+    nextFinalSequenceToDisplay += 1;
+
+    if (translatedLine) {
+      interimTranslationText = "";
+      appendTranslationLine(translatedLine);
+    }
+  }
+}
+
+function enqueueTranslation(transcript, { shouldSpeak = true, isInterim = false } = {}) {
+  const translation = {
+    transcript,
+    sessionId: translationSessionId,
+    requestId: ++nextTranslationRequestId,
+    shouldSpeak,
+    isInterim,
+  };
+
+  if (isInterim) {
+    pendingInterimTranslation = translation;
+  } else {
+    translation.finalSequence = ++nextFinalTranslationSequence;
+    latestQueuedFinalRequestId = translation.requestId;
+    pendingFinalTranslations.push(translation);
+  }
+
+  processTranslationQueue();
+}
+
+function processTranslationQueue() {
+  while (hasPendingTranslations() && activeTranslationCount < MAX_CONCURRENT_TRANSLATIONS) {
+    const translation = pendingFinalTranslations.shift() || pendingInterimTranslation;
+
+    if (translation === pendingInterimTranslation) {
+      pendingInterimTranslation = null;
     }
 
-    render();
+    activeTranslationCount += 1;
+
+    runTranslation(translation).finally(() => {
+      activeTranslationCount -= 1;
+      state.isTranslating = activeTranslationCount > 0 || hasPendingTranslations();
+      render();
+      processTranslationQueue();
+    });
   }
 }
 
@@ -293,6 +379,17 @@ function startRecording() {
   lastNoSpeechNoticeAt = 0;
   transcriptLines = [];
   translationLines = [];
+  interimTranslationText = "";
+  pendingInterimTranslation = null;
+  pendingFinalTranslations = [];
+  completedFinalTranslations = new Map();
+  translationSessionId += 1;
+  nextFinalTranslationSequence = 0;
+  nextFinalSequenceToDisplay = 1;
+  latestAppliedInterimRequestId = 0;
+  latestQueuedFinalRequestId = 0;
+  lastInterimTranslationAt = 0;
+  lastQueuedTranslationText = "";
   shouldKeepListening = true;
 
   recognition = createSpeechRecognition({
@@ -310,6 +407,18 @@ function startRecording() {
       const normalizedFinalTranscript = normalizeTranscript(finalTranscript);
       renderSubtitleTranscript(normalizedInterimTranscript);
 
+      const now = Date.now();
+      const interimWindow = getInterimTranslationWindow(normalizedInterimTranscript);
+      if (
+        interimWindow.length >= 3 &&
+        interimWindow !== lastQueuedTranslationText &&
+        now - lastInterimTranslationAt >= INTERIM_TRANSLATION_INTERVAL_MS
+      ) {
+        lastInterimTranslationAt = now;
+        lastQueuedTranslationText = interimWindow;
+        enqueueTranslation(interimWindow, { shouldSpeak: false, isInterim: true });
+      }
+
       if (isFinal && normalizedFinalTranscript && normalizedFinalTranscript !== lastTranslatedTranscript) {
         const newFinalSegment = getTranscriptDelta(normalizedFinalTranscript);
 
@@ -321,7 +430,8 @@ function startRecording() {
 
         if (newFinalSegment && newFinalSegment !== lastTranslatedTranscript) {
           lastTranslatedTranscript = newFinalSegment;
-          runTranslation(newFinalSegment);
+          lastQueuedTranslationText = newFinalSegment;
+          enqueueTranslation(newFinalSegment);
         }
       }
     },
@@ -394,6 +504,17 @@ function clearAll() {
   lastNoSpeechNoticeAt = 0;
   transcriptLines = [];
   translationLines = [];
+  interimTranslationText = "";
+  pendingInterimTranslation = null;
+  pendingFinalTranslations = [];
+  completedFinalTranslations = new Map();
+  translationSessionId += 1;
+  nextFinalTranslationSequence = 0;
+  nextFinalSequenceToDisplay = 1;
+  latestAppliedInterimRequestId = 0;
+  latestQueuedFinalRequestId = 0;
+  lastInterimTranslationAt = 0;
+  lastQueuedTranslationText = "";
   resetState();
   updateStatus(APP_STATUS.READY);
   render();
@@ -410,7 +531,10 @@ function persistSettings() {
 function initSettings() {
   elements.apiEndpoint.value = getStoredEndpoint();
   elements.apiKey.value = getStoredApiKey();
-  elements.autoSpeakToggle.checked = localStorage.getItem(CONFIG.autoSpeakStorageKey) === "true";
+  const storedAutoSpeak = localStorage.getItem(CONFIG.autoSpeakStorageKey);
+  elements.autoSpeakToggle.checked =
+    CONFIG.autoSpeakEnabled &&
+    (storedAutoSpeak === null ? CONFIG.defaultAutoSpeak : storedAutoSpeak === "true");
   state.autoSpeak = elements.autoSpeakToggle.checked;
   state.selectedVoiceURI = localStorage.getItem(CONFIG.selectedVoiceStorageKey) || "";
 

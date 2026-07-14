@@ -5,7 +5,7 @@ export const state = {
   isTranslating: false,
   isSpeaking: false,
   isSpeechPaused: false,
-  autoSpeak: false,
+  autoSpeak: CONFIG.defaultAutoSpeak,
   selectedVoiceURI: "",
   voices: [],
   transcript: "",

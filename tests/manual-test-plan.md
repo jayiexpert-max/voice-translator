@@ -26,10 +26,13 @@
 | P1-07 | Stop | Click Start Recording, then Stop | Listening stops without a crash |
 | P1-08 | Empty speech | Click Start Recording and stay silent | No speech toast appears and app keeps listening until Stop |
 | P1-09 | Provider fallback | Set LibreTranslate endpoint to an invalid URL and record speech | Usable Thai translation still appears from fallback provider |
-| P1-09B | Full translation failure fallback | Block network or use dev tools to fail all translation requests | Thai transliteration appears with a fallback toast |
+| P1-09B | Full translation failure | Block network or use dev tools to fail all translation requests | An error is shown and phonetic transliteration is not displayed as a translation |
+| P1-09C | Slow provider | Throttle or stall translation requests, then play continuous English speech | Each provider times out, requests do not pile up, and the latest phrase continues through fallback |
+| P1-09D | Preserve visible translation | Throttle the next translation after Thai text is already visible | The previous Thai translation remains readable until a newer successful translation replaces it |
+| P1-09E | Rolling Thai subtitle feed | Speak several short English sentences with pauses | Final Thai lines flow downward, the current interim line updates at the bottom, and only the oldest line is removed after the feed exceeds three lines |
 | P1-10 | Keyboard use | Tab through all controls | Visible focus appears and controls work |
 | P2-01 | Speak translation | Complete a translation, then click Speak | Thai translation is spoken aloud |
-| P2-02 | Auto speak | Enable Auto Speak, then complete a translation | Thai translation is spoken automatically |
+| P2-02 | Auto speak paused | Complete a translation while recording continuous speech | Automatic playback remains disabled so it cannot interfere with live translation |
 | P2-03 | Pause playback | Click Speak, then Pause | Speech pauses |
 | P2-04 | Resume playback | Pause speech, then click Resume | Speech continues |
 | P2-05 | Stop playback | Click Speak, then Stop | Speech stops |
