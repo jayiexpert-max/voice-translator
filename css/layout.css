@@ -90,6 +90,15 @@
   gap: 10px;
 }
 
+.app-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 24px;
+  padding-top: 20px;
+}
+
 .toast-region {
   position: fixed;
   right: 18px;

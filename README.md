@@ -2,6 +2,8 @@
 
 Phase 2 MVP for a browser-based voice translator.
 
+**Version 2.0.0** · Design by **JayOverlay**
+
 ## Current Scope
 
 English speech to Thai text:
@@ -95,3 +97,7 @@ Phase 3 should add Thai to English translation, language selectors, and a swap l
 ## Development Roadmap
 
 See [docs/roadmap.md](./docs/roadmap.md) for the plan and checklist for every phase.
+
+## License
+
+Copyright (c) 2026 JayOverlay. This project is available under the [MIT License](./LICENSE).
