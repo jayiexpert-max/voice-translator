@@ -60,9 +60,9 @@ tests/manual-test-plan.md
 - [x] Append new recognized phrases like subtitle lines.
 - [x] Remove older subtitle lines as new translations arrive.
 - [x] Translate English to Thai.
-- [x] Try provider fallback before transliteration.
+- [x] Try provider fallback before reporting a translation failure.
 - [x] Display translated Thai text.
-- [x] Fall back to Thai transliteration when translation fails.
+- [ ] Show Thai transliteration when translation fails (deferred; current UI reports the error).
 - [x] Add copy button.
 - [x] Add clear button.
 - [x] Add loading, ready, listening, and error states.
@@ -83,7 +83,7 @@ tests/manual-test-plan.md
 - [ ] Manual no-speech feedback test.
 - [ ] Manual copy button clipboard test.
 - [ ] Manual mobile viewport test.
-- [ ] Translation API failure shows Thai transliteration fallback.
+- [x] Translation API failure reports an error instead of showing misleading transliteration.
 - [ ] Bad primary provider still returns a usable Thai translation through fallback provider.
 
 ## Notes

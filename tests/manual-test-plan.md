@@ -1,4 +1,4 @@
-# Phase 1 Manual Test Plan
+# Phases 1-3 Manual Test Plan
 
 ## Setup
 
@@ -32,7 +32,7 @@
 | P1-09E | Rolling Thai subtitle feed | Speak several short English sentences with pauses | Final Thai lines flow downward, the current interim line updates at the bottom, and only the oldest line is removed after the feed exceeds three lines |
 | P1-10 | Keyboard use | Tab through all controls | Visible focus appears and controls work |
 | P2-01 | Speak translation | Complete a translation, then click Speak | Thai translation is spoken aloud |
-| P2-02 | Auto speak paused | Complete a translation while recording continuous speech | Automatic playback remains disabled so it cannot interfere with live translation |
+| P2-02 | Auto speak toggle | Enable Auto Speak, then complete a translation | The target translation is spoken automatically |
 | P2-03 | Pause playback | Click Speak, then Pause | Speech pauses |
 | P2-04 | Resume playback | Pause speech, then click Resume | Speech continues |
 | P2-05 | Stop playback | Click Speak, then Stop | Speech stops |
@@ -41,6 +41,12 @@
 | P2-07 | Clear during speech | Click Speak, then Clear | Speech stops and panels reset |
 | P2-08 | Record during speech | Click Speak, then Start Recording | Speech stops before recording begins |
 | P2-09 | No Thai voice | Test on a device without Thai voice | App falls back without crashing |
+| P3-01 | Language selectors | Choose English and Thai in either direction | Panel labels and direction text update |
+| P3-02 | Thai to English | Select Thai as source, speak Thai, then stop | English translation appears |
+| P3-03 | Swap languages | Click Swap languages | Source and target switch and current text is cleared |
+| P3-04 | Different languages only | Try selecting the same language in both selectors | The other selector changes to keep the pair valid |
+| P3-05 | Target copy | Translate in either direction, then click Copy Target Text | Target translation is copied |
+| P3-06 | Target speech | Translate in either direction, then click Speak | Speech uses the selected target language |
 
 ## Responsive Tests
 

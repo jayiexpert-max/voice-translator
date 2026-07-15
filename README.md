@@ -1,30 +1,34 @@
 # AI Voice Translator
 
-Phase 2 MVP for a browser-based voice translator.
+Phase 3 MVP for a browser-based voice translator.
 
-**Version 2.0.0** · Design by **JayOverlay**
+**Version 3.0.0** · Design by **JayOverlay**
 
 ## Current Scope
 
-English speech to Thai text:
+Two-way English and Thai voice translation:
 
 - Record microphone audio continuously through the Web Speech API until Stop is pressed.
-- Display recognized English text continuously like subtitle lines.
+- Display recognized source text continuously like subtitle lines.
 - Remove older subtitle lines as new translations arrive.
-- Translate English to Thai with provider fallback.
+- Translate English to Thai or Thai to English with provider fallback.
 - Reject failed translations instead of displaying phonetic transliteration as if it were a translation.
-- Speak translated Thai text through the SpeechSynthesis API.
-- Keep automatic speech paused while live translation performance is prioritized.
+- Speak translated target text through the SpeechSynthesis API.
+- Let users enable automatic speech after each successful translation.
 - Select a browser voice.
 - Refresh Chrome browser voices when the voice list is empty.
 - Pause, resume, and stop speech playback.
-- Copy translated Thai text.
+- Copy translated target text.
 - Clear the current session.
 - Show loading, status, and toast messages.
 
 ## Run Locally
 
 Use a local server instead of opening `index.html` directly. Speech recognition and microphone access work best on `localhost` or HTTPS.
+
+### macOS Quick Start
+
+Double-click `start.command`. It starts the local server and opens the app in your default browser. Keep the Terminal window open while using the app, then press `Ctrl+C` to stop the server.
 
 ```powershell
 python -m http.server 5173
@@ -52,7 +56,7 @@ For production, use a serverless proxy on Netlify, Vercel, or Cloudflare Pages t
 
 ## Browser Support
 
-Speech recognition support varies by browser. Chrome and Microsoft Edge are the recommended browsers for Phase 1 and Phase 2.
+Speech recognition support varies by browser. Chrome and Microsoft Edge are the recommended browsers for Phases 1-3. Thai recognition depends on the browser and operating system.
 
 ## Project Structure
 
@@ -92,7 +96,7 @@ voice-translator/
 
 ## Next Phase
 
-Phase 3 should add Thai to English translation, language selectors, and a swap language button.
+Phases 1-3 are implemented. Phase 3 adds Thai to English translation, language selectors, a swap language button, and target-language speech playback. Manual microphone and browser voice checks should still be performed on the target devices.
 
 ## Development Roadmap
 

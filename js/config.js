@@ -3,7 +3,7 @@ export const CONFIG = {
   defaultTargetLanguage: "th",
   recognitionLanguage: "en-US",
   defaultAutoSpeak: false,
-  autoSpeakEnabled: false,
+  autoSpeakEnabled: true,
   translationEndpoint: "https://translate.fedilab.app/translate",
   myMemoryEndpoint: "https://api.mymemory.translated.net/get",
   googleTranslateEndpoint: "https://translate.googleapis.com/translate_a/single",

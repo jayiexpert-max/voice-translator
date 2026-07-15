@@ -20,6 +20,10 @@
     grid-template-columns: 1fr;
   }
 
+  .language-controls {
+    grid-template-columns: 1fr;
+  }
+
   .text-panel {
     min-height: 220px;
   }
@@ -28,6 +32,11 @@
   .secondary-button,
   .ghost-button {
     width: 100%;
+  }
+
+  .swap-button {
+    width: 44px;
+    justify-self: center;
   }
 
   .playback-header,

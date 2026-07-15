@@ -20,12 +20,26 @@
 }
 
 .controls,
+.language-controls,
 .action-row,
 .playback-controls {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
   margin: 18px 0;
+}
+
+.language-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.language-field {
+  display: grid;
+  gap: 6px;
 }
 
 .result-grid {

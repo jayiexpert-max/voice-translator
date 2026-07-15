@@ -13,8 +13,8 @@ The app can:
 - Show new recognized and translated phrases like subtitle lines.
 - Remove older subtitle lines as new translations arrive.
 - Translate the transcript to Thai.
-- Try provider fallback before transliteration.
-- Fall back to Thai transliteration if translation fails.
+- Try provider fallback before reporting a translation failure.
+- Report a translation error if all providers fail instead of presenting transliteration as a translation.
 - Speak the Thai translation aloud.
 - Auto speak after translation when enabled.
 - Let the user choose a browser voice.
@@ -79,8 +79,8 @@ Voice
 - [x] Append new recognized and translated phrases like subtitle lines.
 - [x] Remove older subtitle lines as new translations arrive.
 - [x] Show immediate feedback when no speech is detected.
-- [x] Try provider fallback before transliteration.
-- [x] Keep Thai transliteration available when translation fails.
+- [x] Try provider fallback before reporting a translation failure.
+- [ ] Keep Thai transliteration available when translation fails (deferred).
 - [x] Stop speech when clearing the app.
 - [x] Disable playback controls when unavailable.
 - [x] Add Speaking and Paused statuses.
@@ -103,7 +103,7 @@ Voice
 - [ ] Refresh voices button repopulates voices in Chrome when available.
 - [ ] App falls back gracefully when no Thai voice exists.
 - [ ] App handles browsers without `speechSynthesis`.
-- [ ] Failed translation displays Thai transliteration instead of an empty result.
+- [x] Failed translation displays an error instead of an empty or misleading result.
 - [ ] Bad primary provider still returns a usable Thai translation through fallback provider.
 
 ## Notes

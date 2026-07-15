@@ -1,8 +1,13 @@
 import { CONFIG } from "./config.js";
-import { APP_STATUS, EMPTY_TEXT } from "./constants.js";
+import { APP_STATUS } from "./constants.js";
 import { resetState, state } from "./state.js";
+import {
+  keepLanguagesDifferent,
+  populateLanguageSelector,
+} from "./components/languageSelector.js";
 import { initToast, showToast } from "./components/toast.js";
-import { TARGET_TTS_LANGUAGE, formatVoiceLabel, sortVoicesForLanguage } from "./data/voices.js";
+import { getLanguage, getSpeechLanguageCode } from "./data/languages.js";
+import { formatVoiceLabel, sortVoicesForLanguage } from "./data/voices.js";
 import { createSpeechRecognition, isSpeechRecognitionSupported } from "./services/speechRecognitionService.js";
 import {
   isTextToSpeechSupported,
@@ -37,6 +42,13 @@ const elements = {
   toastRegion: getElement("toastRegion"),
   apiEndpoint: getElement("apiEndpoint"),
   apiKey: getElement("apiKey"),
+  sourceLanguageSelect: getElement("sourceLanguageSelect"),
+  targetLanguageSelect: getElement("targetLanguageSelect"),
+  swapLanguagesButton: getElement("swapLanguagesButton"),
+  directionLabel: getElement("directionLabel"),
+  originalHeading: getElement("originalHeading"),
+  translatedHeading: getElement("translatedHeading"),
+  playbackHeading: getElement("playbackHeading"),
 };
 
 let recognition;
@@ -87,9 +99,24 @@ function updateCharacterCounts() {
   elements.translationCount.textContent = `${state.translation.length} characters`;
 }
 
+function renderLanguageLabels() {
+  const source = getLanguage(state.sourceLanguage);
+  const target = getLanguage(state.targetLanguage);
+
+  elements.directionLabel.textContent = `${source.name} speech to ${target.name} text`;
+  elements.originalHeading.textContent = `Original ${source.name}`;
+  elements.translatedHeading.textContent = `${target.name} Translation`;
+  elements.playbackHeading.textContent = `${target.name} Speech Playback`;
+  elements.copyButton.textContent = `Copy ${target.name} Text`;
+  elements.voiceSelect.options[0].textContent = `Auto ${target.name} voice`;
+}
+
 function render() {
-  setText(elements.originalText, state.transcript || EMPTY_TEXT.original, !state.transcript);
-  setText(elements.translatedText, state.translation || EMPTY_TEXT.translated, !state.translation);
+  const source = getLanguage(state.sourceLanguage);
+  const target = getLanguage(state.targetLanguage);
+  setText(elements.originalText, state.transcript || source.emptyOriginal, !state.transcript);
+  setText(elements.translatedText, state.translation || target.emptyTranslation, !state.translation);
+  renderLanguageLabels();
   elements.originalText.scrollTop = elements.originalText.scrollHeight;
   elements.translatedText.scrollTop = elements.translatedText.scrollHeight;
   updateCharacterCounts();
@@ -213,7 +240,7 @@ function speakTranslation(text = state.translation) {
 
     speakText({
       text,
-      languageCode: TARGET_TTS_LANGUAGE,
+      languageCode: getSpeechLanguageCode(state.targetLanguage),
       voices: state.voices,
       voiceURI: state.selectedVoiceURI,
       onStart: (voice) => {
@@ -266,7 +293,7 @@ async function runTranslation({
     });
 
     if (!state.isListening) {
-      showToast("Translated to Thai.", "success");
+      showToast(`Translated to ${getLanguage(state.targetLanguage).name}.`, "success");
     }
   } catch (error) {
     if (!isInterim) {
@@ -393,7 +420,7 @@ function startRecording() {
   shouldKeepListening = true;
 
   recognition = createSpeechRecognition({
-    language: state.recognitionLanguage,
+    language: getSpeechLanguageCode(state.sourceLanguage),
     continuous: true,
     interimResults: true,
     onStart: () => {
@@ -551,11 +578,12 @@ function initSettings() {
 }
 
 function renderVoiceOptions() {
-  const sortedVoices = sortVoicesForLanguage(state.voices, TARGET_TTS_LANGUAGE);
+  const target = getLanguage(state.targetLanguage);
+  const sortedVoices = sortVoicesForLanguage(state.voices, target.speechCode);
   const fragment = document.createDocumentFragment();
   const automaticOption = document.createElement("option");
   automaticOption.value = "";
-  automaticOption.textContent = "Auto Thai voice";
+  automaticOption.textContent = `Auto ${target.name} voice`;
   fragment.appendChild(automaticOption);
 
   sortedVoices.forEach((voice) => {
@@ -572,6 +600,40 @@ function renderVoiceOptions() {
     state.selectedVoiceURI = "";
     persistSettings();
   }
+}
+
+function updateLanguageSelection() {
+  state.sourceLanguage = elements.sourceLanguageSelect.value;
+  state.targetLanguage = elements.targetLanguageSelect.value;
+  state.recognitionLanguage = getSpeechLanguageCode(state.sourceLanguage);
+  renderVoiceOptions();
+  render();
+}
+
+function changeSourceLanguage() {
+  keepLanguagesDifferent(elements.sourceLanguageSelect, elements.targetLanguageSelect);
+  updateLanguageSelection();
+}
+
+function changeTargetLanguage() {
+  keepLanguagesDifferent(elements.targetLanguageSelect, elements.sourceLanguageSelect);
+  updateLanguageSelection();
+}
+
+function swapLanguages() {
+  stopRecording();
+  stopSpeech();
+  state.isSpeaking = false;
+  state.isSpeechPaused = false;
+  const sourceLanguage = state.sourceLanguage;
+  state.sourceLanguage = state.targetLanguage;
+  state.targetLanguage = sourceLanguage;
+  state.recognitionLanguage = getSpeechLanguageCode(state.sourceLanguage);
+  elements.sourceLanguageSelect.value = state.sourceLanguage;
+  elements.targetLanguageSelect.value = state.targetLanguage;
+  clearAll();
+  renderVoiceOptions();
+  showToast(`Switched to ${getLanguage(state.sourceLanguage).name} to ${getLanguage(state.targetLanguage).name}.`, "info");
 }
 
 async function initTextToSpeech() {
@@ -615,6 +677,12 @@ function init() {
   initToast(elements.toastRegion);
   initSettings();
 
+  populateLanguageSelector(elements.sourceLanguageSelect, state.sourceLanguage);
+  populateLanguageSelector(elements.targetLanguageSelect, state.targetLanguage);
+  elements.sourceLanguageSelect.addEventListener("change", changeSourceLanguage);
+  elements.targetLanguageSelect.addEventListener("change", changeTargetLanguage);
+  elements.swapLanguagesButton.addEventListener("click", swapLanguages);
+
   const supported = isSpeechRecognitionSupported();
   elements.supportNotice.hidden = supported;
   setDisabled(elements.recordButton, !supported);
@@ -644,7 +712,7 @@ function init() {
   elements.copyButton.addEventListener("click", async () => {
     try {
       await copyToClipboard(state.translation);
-      showToast("Thai text copied.", "success");
+      showToast(`${getLanguage(state.targetLanguage).name} text copied.`, "success");
     } catch (error) {
       showToast(error.message, "error");
     }

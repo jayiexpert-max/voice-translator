@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="A lightweight browser voice translator for English speech to Thai text."
+      content="A lightweight browser voice translator for two-way English and Thai speech."
     />
     <meta name="author" content="JayOverlay" />
-    <meta name="application-version" content="2.0.0" />
+    <meta name="application-version" content="3.0.0" />
     <title>AI Voice Translator</title>
     <link rel="stylesheet" href="./css/base.css" />
     <link rel="stylesheet" href="./css/theme.css" />
@@ -18,12 +18,12 @@
   </head>
   <body>
     <main class="app-shell" aria-labelledby="app-title">
-      <section class="translator" aria-label="English speech to Thai translator">
+      <section class="translator" aria-label="Two-way English and Thai translator">
         <header class="app-header">
           <div>
-            <p class="eyebrow">Phase 2 MVP</p>
+            <p class="eyebrow">Phase 3 MVP</p>
             <h1 id="app-title">AI Voice Translator</h1>
-            <p class="subtitle">English speech to Thai text</p>
+            <p class="subtitle" id="directionLabel">English speech to Thai text</p>
           </div>
           <div class="status-pill" id="statusPill" role="status" aria-live="polite">
             Ready
@@ -40,6 +40,31 @@
           </button>
         </section>
 
+        <section class="language-controls" aria-label="Translation languages">
+          <div class="language-field">
+            <label for="sourceLanguageSelect">Speak in</label>
+            <select id="sourceLanguageSelect" name="sourceLanguage"></select>
+          </div>
+          <button
+            class="secondary-button swap-button"
+            id="swapLanguagesButton"
+            type="button"
+            aria-label="Swap source and target languages"
+            title="Swap languages"
+          >
+            <svg class="swap-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M4 8h14" />
+              <path d="m15 5 3 3-3 3" />
+              <path d="M20 16H6" />
+              <path d="m9 13-3 3 3 3" />
+            </svg>
+          </button>
+          <div class="language-field">
+            <label for="targetLanguageSelect">Translate to</label>
+            <select id="targetLanguageSelect" name="targetLanguage"></select>
+          </div>
+        </section>
+
         <section class="notice" id="supportNotice" hidden>
           Speech recognition is not supported in this browser. Please use Chrome
           or Microsoft Edge for the MVP.
@@ -48,7 +73,7 @@
         <section class="result-grid" aria-label="Translation result">
           <article class="text-panel">
             <div class="panel-heading">
-              <h2>Original English</h2>
+              <h2 id="originalHeading">Original English</h2>
               <span id="transcriptCount">0 characters</span>
             </div>
             <p
@@ -62,7 +87,7 @@
 
           <article class="text-panel">
             <div class="panel-heading">
-              <h2>Thai Translation</h2>
+              <h2 id="translatedHeading">Thai Translation</h2>
               <span id="translationCount">0 characters</span>
             </div>
             <p
@@ -77,7 +102,7 @@
 
         <section class="action-row" aria-label="Text actions">
           <button class="secondary-button" id="copyButton" type="button" disabled>
-            Copy Thai Text
+            Copy Target Text
           </button>
           <button class="ghost-button" id="clearButton" type="button">
             Clear
@@ -86,10 +111,10 @@
 
         <section class="playback-panel" aria-label="Text to speech controls">
           <div class="playback-header">
-            <h2>Thai Speech Playback</h2>
+            <h2 id="playbackHeading">Target Language Speech Playback</h2>
             <label class="toggle-control" for="autoSpeakToggle">
               <input id="autoSpeakToggle" type="checkbox" disabled />
-              Auto Speak (paused)
+              Auto Speak
             </label>
           </div>
 
@@ -97,7 +122,7 @@
             <label for="voiceSelect">Voice</label>
             <div class="voice-picker">
               <select id="voiceSelect" name="voiceSelect">
-                <option value="">Auto Thai voice</option>
+                <option value="">Auto target voice</option>
               </select>
               <button class="ghost-button compact-button" id="refreshVoicesButton" type="button">
                 Refresh
@@ -143,7 +168,7 @@
         <footer class="app-footer">
           <span>Design by JayOverlay</span>
           <span aria-hidden="true">&bull;</span>
-          <span>Version 2.0.0</span>
+          <span>Version 3.0.0</span>
           <span aria-hidden="true">&bull;</span>
           <a href="./LICENSE">MIT License</a>
         </footer>

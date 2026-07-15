@@ -8,7 +8,7 @@ This roadmap is the implementation playbook for a solo developer or another AI c
 |---|---|---|---:|---|
 | 1 | English speech to Thai text | Record English speech until Stop and display Thai translation | Done | High |
 | 2 | Text-to-speech | Speak translated text aloud | Done | High |
-| 3 | Thai and English two-way mode | Swap English and Thai translation direction | 1-2 days | High |
+| 3 | Thai and English two-way mode | Swap English and Thai translation direction | Done | High |
 | 4 | Multi-language support | Select and translate across 10 languages | 2-3 days | High |
 | 5 | Real-time translation | Continuous listening with low-latency translation | 3-5 days | High |
 | 6 | Conversation mode | Two people alternate translated speech turns | 3-5 days | High |
@@ -91,9 +91,9 @@ tests/manual-test-plan.md
 - [x] Append new recognized phrases like subtitle lines.
 - [x] Remove older subtitle lines as new translations arrive.
 - [x] Translate English text to Thai.
-- [x] Try provider fallback before transliteration.
+- [x] Try provider fallback before reporting a translation failure.
 - [x] Display Thai translation.
-- [x] Fall back to Thai transliteration when translation fails.
+- [ ] Show Thai transliteration when translation fails (deferred; current UI reports the error).
 - [x] Add copy button.
 - [x] Add clear button.
 - [x] Add loading and status states.
@@ -115,7 +115,7 @@ tests/manual-test-plan.md
 - [ ] Test subtitle-style new-line feed.
 - [ ] Test rolling subtitle cleanup.
 - [ ] Test no-speech feedback while listening continues.
-- [ ] Test translation failure fallback to Thai transliteration.
+- [x] Test translation failure reports an error instead of showing transliteration.
 - [ ] Test bad primary provider still returns a usable Thai translation through fallback provider.
 - [ ] Test copy button manually.
 - [ ] Test mobile layout manually.
@@ -139,8 +139,8 @@ After translation, let the user hear the Thai translation.
 ### Working Result
 
 The app can record English until Stop is pressed, translate to Thai, and speak the Thai text aloud.
-If translation fails, English text falls back to Thai transliteration.
-The app tries provider fallback before using transliteration.
+If translation fails, the app reports the error instead of presenting transliteration as a translation.
+The app tries provider fallback before reporting a translation failure.
 Recognized and translated phrases appear as subtitle-style lines while listening continues.
 Older subtitle lines are removed as new translations arrive.
 
@@ -195,8 +195,8 @@ tests/manual-test-plan.md
 - [x] Append new recognized and translated phrases like subtitle lines.
 - [x] Remove older subtitle lines as new translations arrive.
 - [x] Show immediate feedback when no speech is detected.
-- [x] Try provider fallback before transliteration.
-- [x] Keep Thai transliteration available when translation fails.
+- [x] Try provider fallback before reporting a translation failure.
+- [ ] Keep Thai transliteration available when translation fails (deferred).
 - [x] Show toast when no matching voice is found.
 
 ### Testing Checklist
@@ -215,7 +215,7 @@ tests/manual-test-plan.md
 - [ ] New phrases appear as subtitle-style lines.
 - [ ] Older subtitle lines are removed as new translations arrive.
 - [ ] No-speech feedback appears without stopping listening.
-- [ ] Failed translation displays Thai transliteration instead of an empty result.
+- [x] Failed translation displays an error instead of an empty or misleading result.
 - [ ] Bad primary provider still returns a usable Thai translation through fallback provider.
 
 ### Risks
@@ -227,6 +227,8 @@ tests/manual-test-plan.md
 | Speech queue can overlap | Medium | Cancel before speaking new text |
 
 ## Phase 3 Checklist: Thai-English Two-Way Translation
+
+Status: complete.
 
 ### Goal
 
@@ -268,23 +270,23 @@ tests/manual-test-plan.md
 
 ### Development Checklist
 
-- [ ] Create `languages.js` with English and Thai.
-- [ ] Add source language selector.
-- [ ] Add target language selector.
-- [ ] Add swap button.
-- [ ] Prevent source and target from matching.
-- [ ] Update source language in state.
-- [ ] Update target language in state.
-- [ ] Map `en` to `en-US` for speech recognition.
-- [ ] Map `th` to `th-TH` for speech recognition.
-- [ ] Update panel titles dynamically.
-- [ ] Update copy button text dynamically.
-- [ ] Update TTS target language dynamically.
-- [ ] Clear current transcript after language swap.
+- [x] Create `languages.js` with English and Thai.
+- [x] Add source language selector.
+- [x] Add target language selector.
+- [x] Add swap button.
+- [x] Prevent source and target from matching.
+- [x] Update source language in state.
+- [x] Update target language in state.
+- [x] Map `en` to `en-US` for speech recognition.
+- [x] Map `th` to `th-TH` for speech recognition.
+- [x] Update panel titles dynamically.
+- [x] Update copy button text dynamically.
+- [x] Update TTS target language dynamically.
+- [x] Clear current transcript after language swap.
 
 ### Testing Checklist
 
-- [ ] English to Thai still works.
+- [ ] English to Thai still works in a supported browser.
 - [ ] Thai to English works where browser supports Thai recognition.
 - [ ] Swap button switches languages.
 - [ ] Selectors cannot choose identical languages.
@@ -618,8 +620,8 @@ tests/manual-test-plan.md
 ## Recommended Build Order
 
 1. Finish manual QA for Phase 1.
-2. Implement Phase 2 TTS.
-3. Implement Phase 3 two-way English and Thai.
+2. Complete Phase 2 TTS.
+3. Complete Phase 3 two-way English and Thai.
 4. Add Phase 4 multi-language config.
 5. Add manual text input fallback before or during Phase 4 if speech support is weak.
 6. Add Phase 5 real-time translation after API throttling is understood.
