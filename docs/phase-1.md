@@ -53,7 +53,7 @@ tests/manual-test-plan.md
 - [x] Build responsive dark glassmorphism UI.
 - [x] Add record and stop controls.
 - [x] Keep listening after Start until Stop is pressed.
-- [x] Show immediate feedback when no speech is detected.
+- [x] Keep listening and reconnect when a temporary no-speech event ends recognition.
 - [x] Detect Web Speech API support.
 - [x] Configure English speech recognition with `en-US`.
 - [x] Display recognized English text.
@@ -80,7 +80,7 @@ tests/manual-test-plan.md
 - [ ] Manual continuous listening test until Stop.
 - [ ] Manual subtitle-style new-line feed test.
 - [ ] Manual rolling subtitle cleanup test.
-- [ ] Manual no-speech feedback test.
+- [ ] Manual no-speech reconnect test; listening must continue until Stop is pressed.
 - [ ] Manual copy button clipboard test.
 - [ ] Manual mobile viewport test.
 - [x] Translation API failure reports an error instead of showing misleading transliteration.

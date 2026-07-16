@@ -1,14 +1,15 @@
 # AI Voice Translator
 
-Phase 3 MVP for a browser-based voice translator.
+Version 3.1 browser-based English and Thai voice translator.
 
-**Version 3.0.0** · Design by **JayOverlay**
+**Version 3.1.0** · Design by **JayOverlay**
 
 ## Current Scope
 
 Two-way English and Thai voice translation:
 
 - Record microphone audio continuously through the Web Speech API until Stop is pressed.
+- Recover automatically when browser speech recognition ends or reports a temporary network, aborted, or no-speech event.
 - Display recognized source text continuously like subtitle lines.
 - Remove older subtitle lines as new translations arrive.
 - Translate English to Thai or Thai to English with provider fallback.
@@ -20,6 +21,7 @@ Two-way English and Thai voice translation:
 - Pause, resume, and stop speech playback.
 - Copy translated target text.
 - Clear the current session.
+- Generate a local English summary and export a complete `.md` package for a second-pass AI review.
 - Show loading, status, and toast messages.
 
 ## Run Locally
@@ -80,27 +82,34 @@ voice-translator/
 |   |   `-- voices.js
 |   |-- services/
 |   |   |-- speechRecognitionService.js
+|   |   |-- summaryService.js
 |   |   |-- textToSpeechService.js
 |   |   |-- translationService.js
 |   |   `-- transliterationService.js
 |   `-- utils/
 |       |-- clipboard.js
+|       |-- download.js
 |       `-- dom.js
 |-- docs/
 |   |-- phase-1.md
 |   |-- phase-2.md
+|   |-- summary-feature.md
 |   `-- roadmap.md
-`-- tests/
-    `-- manual-test-plan.md
+|-- tests/
+|   |-- manual-test-plan.md
+|   `-- summaryService.test.mjs
+`-- CHANGELOG.md
 ```
 
 ## Next Phase
 
-Phases 1-3 are implemented. Phase 3 adds Thai to English translation, language selectors, a swap language button, and target-language speech playback. Manual microphone and browser voice checks should still be performed on the target devices.
+Version 3.1 includes Phases 1-3 plus resilient continuous recognition, full-session transcript memory, responsive English summaries, and Markdown packages for second-pass AI review. Manual microphone and browser voice checks should still be performed on the target devices.
 
 ## Development Roadmap
 
 See [docs/roadmap.md](./docs/roadmap.md) for the plan and checklist for every phase.
+
+See [CHANGELOG.md](./CHANGELOG.md) for release history.
 
 ## License
 

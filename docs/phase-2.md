@@ -78,7 +78,7 @@ Voice
 - [x] Keep speech recognition running until Stop is pressed.
 - [x] Append new recognized and translated phrases like subtitle lines.
 - [x] Remove older subtitle lines as new translations arrive.
-- [x] Show immediate feedback when no speech is detected.
+- [x] Keep listening and reconnect when a temporary no-speech event ends recognition.
 - [x] Try provider fallback before reporting a translation failure.
 - [ ] Keep Thai transliteration available when translation fails (deferred).
 - [x] Stop speech when clearing the app.
@@ -98,7 +98,7 @@ Voice
 - [ ] Start keeps listening across multiple spoken phrases until Stop.
 - [ ] New phrases appear as subtitle-style lines.
 - [ ] Older subtitle lines are removed as new translations arrive.
-- [ ] No-speech feedback appears without stopping listening.
+- [ ] A no-speech event reconnects without stopping the listening session.
 - [ ] Voice selector populates with browser voices.
 - [ ] Refresh voices button repopulates voices in Chrome when available.
 - [ ] App falls back gracefully when no Thai voice exists.

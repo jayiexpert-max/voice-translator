@@ -2,6 +2,7 @@ export const APP_STATUS = {
   READY: "Ready",
   LISTENING: "Listening",
   TRANSLATING: "Translating",
+  SUMMARIZING: "Summarizing",
   SPEAKING: "Speaking",
   PAUSED: "Paused",
   ERROR: "Needs attention",

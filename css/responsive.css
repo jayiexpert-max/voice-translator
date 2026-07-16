@@ -28,6 +28,14 @@
     min-height: 220px;
   }
 
+  .summary-output:not(.placeholder) {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-section:first-of-type {
+    grid-column: auto;
+  }
+
   .primary-button,
   .secondary-button,
   .ghost-button {

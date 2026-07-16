@@ -14,6 +14,16 @@ This roadmap is the implementation playbook for a solo developer or another AI c
 | 6 | Conversation mode | Two people alternate translated speech turns | 3-5 days | High |
 | 7 | AI assistant mode | Speak to an AI assistant through translation | 3-5 days | Medium |
 
+## Current Release: 3.1.0
+
+Status: complete.
+
+- Keep recognition active until Stop is pressed and reconnect after temporary browser session endings.
+- Retain a complete session transcript separately from the rolling subtitle display.
+- Generate a responsive English-only extractive summary.
+- Export a Markdown review package with AI instructions, the preliminary summary, the complete original transcript, and available translations.
+- Clear all full-session transcript and summary memory on Clear or a new recording.
+
 ## Current Architecture
 
 ```mermaid
@@ -23,8 +33,10 @@ flowchart TD
     App --> Speech[js/services/speechRecognitionService.js]
     App --> Translate[js/services/translationService.js]
     App --> Transliterate[js/services/transliterationService.js]
+    App --> Summary[js/services/summaryService.js]
     App --> Toast[js/components/toast.js]
     App --> Clipboard[js/utils/clipboard.js]
+    App --> Download[js/utils/download.js]
     Speech --> BrowserSpeech[Web Speech API]
     Translate --> Libre[LibreTranslate endpoint]
 ```
@@ -84,7 +96,7 @@ tests/manual-test-plan.md
 - [x] Build responsive dark UI.
 - [x] Add record and stop controls.
 - [x] Keep listening after Start until Stop is pressed.
-- [x] Show immediate feedback when no speech is detected.
+- [x] Keep listening and reconnect when a temporary no-speech event ends recognition.
 - [x] Detect Web Speech API support.
 - [x] Set speech recognition to `en-US`.
 - [x] Display recognized English text.
@@ -114,7 +126,7 @@ tests/manual-test-plan.md
 - [ ] Test continuous listening until Stop.
 - [ ] Test subtitle-style new-line feed.
 - [ ] Test rolling subtitle cleanup.
-- [ ] Test no-speech feedback while listening continues.
+- [ ] Test recognition reconnect after a temporary no-speech event.
 - [x] Test translation failure reports an error instead of showing transliteration.
 - [ ] Test bad primary provider still returns a usable Thai translation through fallback provider.
 - [ ] Test copy button manually.
@@ -194,7 +206,7 @@ tests/manual-test-plan.md
 - [x] Keep speech recognition running until Stop is pressed.
 - [x] Append new recognized and translated phrases like subtitle lines.
 - [x] Remove older subtitle lines as new translations arrive.
-- [x] Show immediate feedback when no speech is detected.
+- [x] Keep listening and reconnect when a temporary no-speech event ends recognition.
 - [x] Try provider fallback before reporting a translation failure.
 - [ ] Keep Thai transliteration available when translation fails (deferred).
 - [x] Show toast when no matching voice is found.
@@ -214,7 +226,7 @@ tests/manual-test-plan.md
 - [ ] Start keeps listening across multiple phrases until Stop.
 - [ ] New phrases appear as subtitle-style lines.
 - [ ] Older subtitle lines are removed as new translations arrive.
-- [ ] No-speech feedback appears without stopping listening.
+- [ ] A no-speech event reconnects without stopping the listening session.
 - [x] Failed translation displays an error instead of an empty or misleading result.
 - [ ] Bad primary provider still returns a usable Thai translation through fallback provider.
 

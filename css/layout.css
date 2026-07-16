@@ -77,6 +77,26 @@
   padding: 18px;
 }
 
+.summary-panel {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.summary-output:not(.placeholder) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.summary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 .playback-header,
 .voice-row {
   display: flex;

@@ -1,4 +1,4 @@
-# Phases 1-3 Manual Test Plan
+# Version 3.1 Manual Test Plan
 
 ## Setup
 
@@ -24,7 +24,12 @@
 | P1-05 | Copy | Click Copy Thai Text | Success toast appears and clipboard contains Thai text |
 | P1-06 | Clear | Click Clear | Text panels reset and status returns to Ready |
 | P1-07 | Stop | Click Start Recording, then Stop | Listening stops without a crash |
-| P1-08 | Empty speech | Click Start Recording and stay silent | No speech toast appears and app keeps listening until Stop |
+| P1-08 | Empty speech | Click Start Recording and stay silent | App keeps listening until Stop is pressed |
+| P1-08B | Speech during recognition reconnect | Speak continuously while browser recognition restarts or briefly loses its network connection | Recognition reconnects automatically and the app keeps listening until Stop is pressed |
+| P1-08C | Generate summary | Record several final phrases, press Stop, then Generate English Summary | An English-only summary covers the full session rather than only visible subtitle lines |
+| P1-08C2 | Responsive summary layout | Generate a summary and resize from desktop to mobile | Overview spans the available width; key points and actions use two columns on desktop and one column on mobile |
+| P1-08D | Export summary | Press Export for AI (.md) after recording | A UTF-8 Markdown review package downloads with AI instructions, full original transcript, available translation, and preliminary English summary when generated |
+| P1-08E | Clear summary memory | Generate a summary, press Clear, then inspect summary controls | Full-session memory and summary are empty and Export is disabled |
 | P1-09 | Provider fallback | Set LibreTranslate endpoint to an invalid URL and record speech | Usable Thai translation still appears from fallback provider |
 | P1-09B | Full translation failure | Block network or use dev tools to fail all translation requests | An error is shown and phonetic transliteration is not displayed as a translation |
 | P1-09C | Slow provider | Throttle or stall translation requests, then play continuous English speech | Each provider times out, requests do not pile up, and the latest phrase continues through fallback |

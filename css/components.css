@@ -155,6 +155,72 @@ h2 {
   color: #9fb1ae;
 }
 
+.summary-kicker {
+  margin-bottom: 4px;
+  color: #7ddfd0;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.summary-output {
+  min-height: 150px;
+  max-height: 360px;
+  margin: 0;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  color: #eef9f7;
+  line-height: 1.7;
+}
+
+.summary-document-title {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #f8fffd;
+  font-size: clamp(1.25rem, 3vw, 1.7rem);
+}
+
+.summary-meta {
+  grid-column: 1 / -1;
+  color: #91aaa6;
+  font-size: 0.82rem;
+}
+
+.summary-section {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+  background: rgba(3, 13, 15, 0.28);
+}
+
+.summary-section:first-of-type {
+  grid-column: 1 / -1;
+}
+
+.summary-section h3 {
+  margin: 0 0 10px;
+  color: #8df0df;
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.summary-section p,
+.summary-section ul {
+  margin: 0;
+}
+
+.summary-section ul {
+  display: grid;
+  gap: 8px;
+  padding-left: 20px;
+}
+
+.summary-section li::marker {
+  color: #6ee7d8;
+}
+
 .notice {
   border-radius: 8px;
   margin: 12px 0;

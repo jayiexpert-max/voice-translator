@@ -8,7 +8,7 @@
       content="A lightweight browser voice translator for two-way English and Thai speech."
     />
     <meta name="author" content="JayOverlay" />
-    <meta name="application-version" content="3.0.0" />
+    <meta name="application-version" content="3.1.0" />
     <title>AI Voice Translator</title>
     <link rel="stylesheet" href="./css/base.css" />
     <link rel="stylesheet" href="./css/theme.css" />
@@ -21,7 +21,7 @@
       <section class="translator" aria-label="Two-way English and Thai translator">
         <header class="app-header">
           <div>
-            <p class="eyebrow">Phase 3 MVP</p>
+            <p class="eyebrow">Version 3.1</p>
             <h1 id="app-title">AI Voice Translator</h1>
             <p class="subtitle" id="directionLabel">English speech to Thai text</p>
           </div>
@@ -109,6 +109,29 @@
           </button>
         </section>
 
+        <section class="summary-panel" aria-labelledby="summaryHeading">
+          <div class="panel-heading">
+            <div>
+              <p class="summary-kicker">Session notes</p>
+              <h2 id="summaryHeading">English Conversation Summary</h2>
+            </div>
+            <span id="summaryCount">0 characters</span>
+          </div>
+          <div
+            class="summary-output placeholder"
+            id="summaryOutput"
+            aria-live="polite"
+          >Stop recording, then generate an English summary of the full conversation.</div>
+          <div class="summary-actions">
+            <button class="primary-button" id="summarizeButton" type="button" disabled>
+              Generate English Summary
+            </button>
+            <button class="secondary-button" id="exportSummaryButton" type="button" disabled>
+              Export for AI (.md)
+            </button>
+          </div>
+        </section>
+
         <section class="playback-panel" aria-label="Text to speech controls">
           <div class="playback-header">
             <h2 id="playbackHeading">Target Language Speech Playback</h2>
@@ -168,7 +191,7 @@
         <footer class="app-footer">
           <span>Design by JayOverlay</span>
           <span aria-hidden="true">&bull;</span>
-          <span>Version 3.0.0</span>
+          <span>Version 3.1.0</span>
           <span aria-hidden="true">&bull;</span>
           <a href="./LICENSE">MIT License</a>
         </footer>
