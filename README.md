@@ -1,8 +1,8 @@
 # AI Voice Translator
 
-Version 3.1 browser-based English and Thai voice translator.
+Version 3.2 browser and desktop English and Thai voice translator.
 
-**Version 3.1.0** · Design by **JayOverlay**
+**Version 3.2.0** · Design by **JayOverlay**
 
 ## Current Scope
 
@@ -23,6 +23,9 @@ Two-way English and Thai voice translation:
 - Clear the current session.
 - Generate a local English summary and export a complete `.md` package for a second-pass AI review.
 - Show loading, status, and toast messages.
+- Select microphone or USB Audio Device input.
+- Capture Microsoft Teams or tab audio for translation.
+- Install on Windows through the Electron desktop app and GitHub Releases.
 
 ## Install on Windows (Desktop App)
 
@@ -138,7 +141,7 @@ voice-translator/
 
 ## Next Phase
 
-Version 3.1 includes Phases 1-3 plus resilient continuous recognition, full-session transcript memory, responsive English summaries, and Markdown packages for second-pass AI review. Manual microphone and browser voice checks should still be performed on the target devices.
+Version 3.2 includes USB and Teams audio capture, an Electron desktop wrapper for Windows installation, plus Phases 1-3 with resilient continuous recognition, full-session transcript memory, responsive English summaries, and Markdown packages for second-pass AI review.
 
 ## Development Roadmap
 

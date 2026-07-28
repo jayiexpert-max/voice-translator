@@ -14,10 +14,12 @@ This roadmap is the implementation playbook for a solo developer or another AI c
 | 6 | Conversation mode | Two people alternate translated speech turns | 3-5 days | High |
 | 7 | AI assistant mode | Speak to an AI assistant through translation | 3-5 days | Medium |
 
-## Current Release: 3.1.0
+## Current Release: 3.2.0
 
 Status: complete.
 
+- Package the app as a Windows desktop installer through Electron and GitHub Releases.
+- Select microphone, USB Audio Device, or Microsoft Teams/tab audio input.
 - Keep recognition active until Stop is pressed and reconnect after temporary browser session endings.
 - Retain a complete session transcript separately from the rolling subtitle display.
 - Generate a responsive English-only extractive summary.

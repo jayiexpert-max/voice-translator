@@ -9,6 +9,11 @@ All notable changes to AI Voice Translator are documented here.
 - Electron desktop wrapper for Windows installation.
 - GitHub Actions workflow to build and publish `.exe` installers on tagged releases.
 - Desktop development scripts: `npm run desktop:dev` and `npm run desktop:build:win`.
+- USB Audio Device and Microsoft Teams/tab audio input for meeting translation.
+
+### Changed
+
+- Updated visible app version labels to 3.2.0 across the UI, README, roadmap, and docs.
 
 ## 3.1.0 - 2026-07-16
 

@@ -4,11 +4,22 @@ The Windows `.exe` installer is **not in the source code**. It is built by GitHu
 
 ## Why users see no download yet
 
-1. The Electron wrapper commit must be on GitHub (`main`).
-2. A maintainer must push a tag such as `v3.2.0`.
-3. GitHub Actions builds the installer on Windows and uploads it to Releases.
+1. The Electron wrapper must be on GitHub (`main`). **Done after push.**
+2. Add the GitHub Actions workflow file on github.com (see below).
+3. Push a tag such as `v3.2.0`.
+4. GitHub Actions builds the installer and uploads it to Releases.
 
-Until those steps complete, the Releases page will have **no `.exe` file**.
+Until step 3–4 complete, the Releases page will have **no `.exe` file**.
+
+## Add the build workflow on GitHub (one-time)
+
+Local `git push` may fail if your token lacks the `workflow` scope. Add the workflow in the browser instead:
+
+1. Open https://github.com/jayiexpert-max/voice-translator
+2. Click **Add file** → **Create new file**
+3. Path: `.github/workflows/release-desktop.yml`
+4. Paste the contents from the local file `.github/workflows/release-desktop.yml` in this repo
+5. Click **Commit directly to the main branch**
 
 ## Publish a Windows installer (maintainer)
 
