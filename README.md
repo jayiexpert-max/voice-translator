@@ -24,7 +24,38 @@ Two-way English and Thai voice translation:
 - Generate a local English summary and export a complete `.md` package for a second-pass AI review.
 - Show loading, status, and toast messages.
 
-## Run Locally
+## Install on Windows (Desktop App)
+
+Download the latest `.exe` installer from [GitHub Releases](https://github.com/jayiexpert-max/voice-translator/releases):
+
+1. Open the Releases page.
+2. Download `AI Voice Translator Setup *.exe` from the latest release.
+3. Run the installer and follow the prompts.
+4. Launch **AI Voice Translator** from the Start Menu or desktop shortcut.
+
+> **Note:** The `.exe` appears only after a maintainer publishes a release (for example tag `v3.2.0`). If the Releases page is empty, see [docs/desktop-release.md](./docs/desktop-release.md).
+
+The desktop app bundles the same web translator with microphone, USB audio, Teams/tab capture, translation, speech playback, summary, and Markdown export support.
+
+### Build the Windows installer yourself
+
+Requires Node.js 20+ on Windows (or use GitHub Actions):
+
+```powershell
+npm install
+npm run desktop:build:win
+```
+
+The installer is written to `dist/`.
+
+### Run the desktop app in development
+
+```powershell
+npm install
+npm run desktop:dev
+```
+
+## Run Locally (Browser)
 
 Use a local server instead of opening `index.html` directly. Speech recognition and microphone access work best on `localhost` or HTTPS.
 
@@ -64,6 +95,10 @@ Speech recognition support varies by browser. Chrome and Microsoft Edge are the 
 
 ```text
 voice-translator/
+|-- electron/
+|   |-- main.js
+|   `-- preload.js
+|-- package.json
 |-- index.html
 |-- css/
 |   |-- base.css

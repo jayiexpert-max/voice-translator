@@ -2,6 +2,14 @@
 
 All notable changes to AI Voice Translator are documented here.
 
+## 3.2.0 - 2026-07-28
+
+### Added
+
+- Electron desktop wrapper for Windows installation.
+- GitHub Actions workflow to build and publish `.exe` installers on tagged releases.
+- Desktop development scripts: `npm run desktop:dev` and `npm run desktop:build:win`.
+
 ## 3.1.0 - 2026-07-16
 
 ### Added

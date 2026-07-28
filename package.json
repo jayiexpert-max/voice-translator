@@ -1,0 +1,49 @@
+{
+  "name": "ai-voice-translator",
+  "version": "3.2.0",
+  "description": "AI Voice Translator desktop app for English and Thai speech translation",
+  "author": "JayOverlay",
+  "license": "MIT",
+  "main": "electron/main.js",
+  "scripts": {
+    "desktop:dev": "electron .",
+    "desktop:build:win": "electron-builder --win",
+    "desktop:build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^35.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.jayoverlay.voice-translator",
+    "productName": "AI Voice Translator",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "index.html",
+      "css/**/*",
+      "js/**/*",
+      "LICENSE"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "AI Voice Translator"
+    },
+    "publish": null
+  }
+}
