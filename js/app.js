@@ -1,5 +1,5 @@
 import { CONFIG } from "./config.js";
-import { APP_STATUS } from "./constants.js";
+import { APP_STATUS, AUDIO_SOURCE } from "./constants.js";
 import { resetState, state } from "./state.js";
 import {
   keepLanguagesDifferent,
@@ -9,6 +9,29 @@ import { initToast, showToast } from "./components/toast.js";
 import { getLanguage, getSpeechLanguageCode } from "./data/languages.js";
 import { formatVoiceLabel, sortVoicesForLanguage } from "./data/voices.js";
 import { createSpeechRecognition, isSpeechRecognitionSupported } from "./services/speechRecognitionService.js";
+import {
+  acquireMicrophoneStream,
+  findPreferredAudioInputDevice,
+  formatAudioInputLabel,
+  isAudioInputSupported,
+  isExternalAudioCaptureDevice,
+  isMeetingLoopbackDevice,
+  isUsbAudioDevice,
+  loadAudioInputDevices,
+  releaseMicrophoneStream,
+} from "./services/audioInputService.js";
+import {
+  acquireMeetingAudioStream,
+  createContinuousMeetingCapture,
+  extractNewMeetingSegment,
+  isMeetingAudioSupported,
+  releaseMeetingAudioStream,
+} from "./services/meetingAudioService.js";
+import {
+  isPlausibleTranscript,
+  preloadMeetingTranscriber,
+  transcribeMeetingAudio,
+} from "./services/meetingTranscriptionService.js";
 import {
   isTextToSpeechSupported,
   loadVoices,
@@ -33,6 +56,14 @@ const elements = {
   autoSpeakToggle: getElement("autoSpeakToggle"),
   voiceSelect: getElement("voiceSelect"),
   refreshVoicesButton: getElement("refreshVoicesButton"),
+  microphoneSelect: getElement("microphoneSelect"),
+  refreshMicrophonesButton: getElement("refreshMicrophonesButton"),
+  audioSourceSelect: getElement("audioSourceSelect"),
+  audioSourceHint: getElement("audioSourceHint"),
+  microphoneRow: getElement("microphoneRow"),
+  inputLevelRow: getElement("inputLevelRow"),
+  inputLevelMeter: getElement("inputLevelMeter"),
+  inputLevelText: getElement("inputLevelText"),
   copyButton: getElement("copyButton"),
   clearButton: getElement("clearButton"),
   summarizeButton: getElement("summarizeButton"),
@@ -58,6 +89,18 @@ const elements = {
 };
 
 let recognition;
+let microphoneStream = null;
+let meetingStream = null;
+let meetingCapture = null;
+let activeCaptureStreamType = null;
+let meetingChunkQueue = [];
+let activeMeetingTranscriptions = 0;
+let lastMeetingChunkTranscript = "";
+let meetingInterimTranscript = "";
+let captureAudioDetected = false;
+let captureSilenceTimer = null;
+let speechModelReady = false;
+let speechModelLoading = false;
 let shouldKeepListening = false;
 let lastTranslatedTranscript = "";
 let lastRecognitionFinalTranscript = "";
@@ -97,7 +140,12 @@ function getStoredApiKey() {
 function updateStatus(status) {
   elements.statusPill.textContent = status;
   elements.statusPill.classList.toggle("is-listening", status === APP_STATUS.LISTENING);
-  elements.statusPill.classList.toggle("is-loading", status === APP_STATUS.SUMMARIZING || status === APP_STATUS.TRANSLATING);
+  elements.statusPill.classList.toggle(
+    "is-loading",
+    status === APP_STATUS.SUMMARIZING ||
+      status === APP_STATUS.TRANSLATING ||
+      status === APP_STATUS.TRANSCRIBING,
+  );
   elements.statusPill.classList.toggle("is-speaking", status === APP_STATUS.SPEAKING);
 }
 
@@ -197,6 +245,7 @@ function render() {
   setText(elements.translatedText, state.translation || target.emptyTranslation, !state.translation);
   renderSummaryOutput();
   renderLanguageLabels();
+  renderAudioSourceUi();
   elements.originalText.scrollTop = elements.originalText.scrollHeight;
   elements.translatedText.scrollTop = elements.translatedText.scrollHeight;
   updateCharacterCounts();
@@ -229,6 +278,47 @@ function render() {
   setDisabled(elements.voiceSelect, !ttsSupported || state.voices.length === 0);
   setDisabled(elements.refreshVoicesButton, !ttsSupported);
   setDisabled(elements.autoSpeakToggle, !ttsSupported || !CONFIG.autoSpeakEnabled);
+
+  const audioInputSupported = isAudioInputSupported();
+  setDisabled(elements.audioSourceSelect, state.isListening);
+  setDisabled(elements.microphoneSelect, !audioInputSupported || state.isListening);
+  setDisabled(elements.refreshMicrophonesButton, !audioInputSupported || state.isListening);
+}
+
+function getSelectedAudioInputDevice() {
+  return state.audioInputDevices.find((device) => device.deviceId === state.selectedAudioInputId) || null;
+}
+
+function renderAudioSourceUi() {
+  const isMeetingMode = state.audioSource === AUDIO_SOURCE.MEETING;
+  elements.microphoneRow.hidden = isMeetingMode;
+
+  if (isMeetingMode) {
+    elements.audioSourceHint.textContent =
+      "Start recording, choose the Microsoft Teams tab or window, and enable Share audio. Uses a larger speech model for better accuracy; first load may take 1-3 minutes.";
+    return;
+  }
+
+  const selectedDevice = getSelectedAudioInputDevice();
+  const preferredDevice = findPreferredAudioInputDevice(state.audioInputDevices);
+
+  if (selectedDevice && isUsbAudioDevice(selectedDevice)) {
+    elements.audioSourceHint.textContent = `Input: ${formatAudioInputLabel(selectedDevice)}. USB audio uses direct capture + speech model (not browser mic). Press Start Recording and wait for the model to load.`;
+    return;
+  }
+
+  if (selectedDevice && isMeetingLoopbackDevice(selectedDevice)) {
+    elements.audioSourceHint.textContent = `Input: ${formatAudioInputLabel(selectedDevice)}. Loopback capture is active for meeting audio.`;
+    return;
+  }
+
+  if (preferredDevice && /usb audio device/i.test(preferredDevice.label || "")) {
+    elements.audioSourceHint.textContent = `USB Audio Device detected. Select "${formatAudioInputLabel(preferredDevice)}" below for Teams loopback input.`;
+    return;
+  }
+
+  elements.audioSourceHint.textContent =
+    "Choose a microphone or USB audio device below. For Teams audio through a USB interface, select USB Audio Device here.";
 }
 
 function normalizeTranscript(text) {
@@ -495,12 +585,31 @@ function processTranslationQueue() {
   }
 }
 
-function startRecording() {
-  if (!isSpeechRecognitionSupported()) {
-    showToast("Speech recognition is not supported in this browser.", "error");
-    return;
-  }
+function releaseActiveMicrophone() {
+  releaseMicrophoneStream(microphoneStream);
+  microphoneStream = null;
+}
 
+async function ensureMicrophoneStream() {
+  releaseActiveMicrophone();
+
+  try {
+    microphoneStream = await acquireMicrophoneStream(state.selectedAudioInputId, state.audioInputDevices);
+  } catch (error) {
+    const deviceLabel = state.selectedAudioInputId
+      ? formatAudioInputLabel(
+          state.audioInputDevices.find((device) => device.deviceId === state.selectedAudioInputId) ?? {
+            deviceId: state.selectedAudioInputId,
+            label: "",
+          },
+        )
+      : "the selected microphone";
+
+    throw new Error(`Could not open ${deviceLabel}. Check USB connection and browser microphone permission.`);
+  }
+}
+
+function resetRecordingSession() {
   stopSpeech();
   state.isSpeaking = false;
   state.isSpeechPaused = false;
@@ -509,6 +618,8 @@ function startRecording() {
   state.summary = "";
   lastTranslatedTranscript = "";
   lastRecognitionFinalTranscript = "";
+  lastMeetingChunkTranscript = "";
+  meetingInterimTranscript = "";
   transcriptLines = [];
   translationLines = [];
   fullTranscriptLines = [];
@@ -524,8 +635,326 @@ function startRecording() {
   latestQueuedFinalRequestId = 0;
   lastInterimTranslationAt = 0;
   lastQueuedTranslationText = "";
-  shouldKeepListening = true;
+  meetingChunkQueue = [];
+  activeMeetingTranscriptions = 0;
   ignoreRecognitionError = false;
+}
+
+function resetInputLevelMeter() {
+  elements.inputLevelRow.hidden = true;
+  elements.inputLevelMeter.value = 0;
+  elements.inputLevelText.textContent = "Silent";
+}
+
+function updateInputLevelMeter(level) {
+  elements.inputLevelRow.hidden = false;
+  elements.inputLevelMeter.value = Math.min(level, 0.25);
+
+  if (level < 0.003) {
+    elements.inputLevelText.textContent = "Silent";
+  } else if (level < 0.02) {
+    elements.inputLevelText.textContent = "Low";
+  } else if (level < 0.08) {
+    elements.inputLevelText.textContent = "Good";
+  } else {
+    elements.inputLevelText.textContent = "Strong";
+  }
+}
+
+function beginSpeechModelLoad() {
+  if (speechModelLoading || speechModelReady) {
+    return;
+  }
+
+  speechModelReady = false;
+  speechModelLoading = true;
+
+  preloadMeetingTranscriber(state.sourceLanguage)
+    .then(() => {
+      speechModelReady = true;
+      showToast("Speech model ready. Processing audio...", "success");
+      processMeetingChunkQueue();
+    })
+    .catch((error) => {
+      showToast(error.message, "error");
+    })
+    .finally(() => {
+      speechModelLoading = false;
+    });
+}
+
+function usesStreamCapturePipeline() {
+  if (state.audioSource === AUDIO_SOURCE.MEETING) {
+    return true;
+  }
+
+  const device = getSelectedAudioInputDevice();
+  return Boolean(device && isExternalAudioCaptureDevice(device));
+}
+
+function clearCaptureSilenceTimer() {
+  window.clearTimeout(captureSilenceTimer);
+  captureSilenceTimer = null;
+}
+
+function scheduleCaptureSilenceCheck(inputLabel) {
+  clearCaptureSilenceTimer();
+  captureAudioDetected = false;
+
+  captureSilenceTimer = window.setTimeout(() => {
+    if (!shouldKeepListening || captureAudioDetected) {
+      return;
+    }
+
+    showToast(
+      `No audio detected from ${inputLabel}. Check that Teams output is routed to this device and volume is up.`,
+      "error",
+    );
+  }, 12000);
+}
+
+function stopStreamCaptureRecording() {
+  meetingCapture?.stop();
+  meetingCapture = null;
+  clearCaptureSilenceTimer();
+
+  if (activeCaptureStreamType === "meeting") {
+    releaseMeetingAudioStream(meetingStream);
+    meetingStream = null;
+  } else if (activeCaptureStreamType === "microphone") {
+    releaseActiveMicrophone();
+  }
+
+  activeCaptureStreamType = null;
+  meetingChunkQueue = [];
+  activeMeetingTranscriptions = 0;
+  lastMeetingChunkTranscript = "";
+  meetingInterimTranscript = "";
+  speechModelReady = false;
+  speechModelLoading = false;
+  resetInputLevelMeter();
+}
+
+function stopMeetingRecording() {
+  stopStreamCaptureRecording();
+}
+
+function appendMeetingTranscriptSegment(text) {
+  const segment = normalizeTranscript(text);
+
+  if (!segment) {
+    return;
+  }
+
+  fullTranscriptLines.push(segment);
+  transcriptLines.push(segment);
+  trimSubtitleLines();
+  meetingInterimTranscript = "";
+  renderSubtitleTranscript();
+  lastQueuedTranslationText = segment;
+  enqueueTranslation(segment);
+}
+
+function handleMeetingChunk(blob) {
+  if (!shouldKeepListening) {
+    return;
+  }
+
+  captureAudioDetected = true;
+  meetingChunkQueue.push(blob);
+
+  while (meetingChunkQueue.length > CONFIG.meetingAudioMaxQueuedChunks) {
+    meetingChunkQueue.shift();
+  }
+
+  if (!meetingInterimTranscript) {
+    meetingInterimTranscript = "...";
+    renderSubtitleTranscript(meetingInterimTranscript);
+  }
+
+  if (meetingChunkQueue.length === 1 && speechModelReady) {
+    showToast("Audio signal received. Transcribing...", "info");
+  } else if (meetingChunkQueue.length === 1 && !speechModelReady) {
+    showToast("Audio signal received. Waiting for speech model...", "info");
+  }
+
+  processMeetingChunkQueue();
+
+  if (!speechModelReady && !speechModelLoading) {
+    beginSpeechModelLoad();
+  }
+}
+
+async function transcribeMeetingChunk(blob) {
+  const text = normalizeTranscript(await transcribeMeetingAudio(blob, state.sourceLanguage));
+
+  if (!text || !shouldKeepListening || !isPlausibleTranscript(text, state.sourceLanguage)) {
+    return;
+  }
+
+  const newSegment = extractNewMeetingSegment(
+    lastMeetingChunkTranscript,
+    text,
+    state.sourceLanguage,
+  );
+
+  if (!newSegment) {
+    return;
+  }
+
+  lastMeetingChunkTranscript = text;
+  appendMeetingTranscriptSegment(newSegment);
+
+  if (fullTranscriptLines.length === 1) {
+    showToast("Speech detected. Translating...", "success");
+  }
+}
+
+function processMeetingChunkQueue() {
+  if (!speechModelReady) {
+    return;
+  }
+
+  while (
+    shouldKeepListening &&
+    activeMeetingTranscriptions < CONFIG.meetingAudioMaxConcurrentTranscriptions &&
+    meetingChunkQueue.length > 0
+  ) {
+    const blob = meetingChunkQueue.shift();
+    activeMeetingTranscriptions += 1;
+    updateStatus(APP_STATUS.TRANSCRIBING);
+    render();
+
+    transcribeMeetingChunk(blob)
+      .catch((error) => {
+        updateStatus(APP_STATUS.ERROR);
+        showToast(error.message, "error");
+      })
+      .finally(() => {
+        activeMeetingTranscriptions -= 1;
+
+        if (shouldKeepListening) {
+          updateStatus(
+            activeMeetingTranscriptions > 0 || meetingChunkQueue.length > 0
+              ? APP_STATUS.TRANSCRIBING
+              : APP_STATUS.LISTENING,
+          );
+        }
+
+        if (meetingChunkQueue.length === 0 && activeMeetingTranscriptions === 0) {
+          meetingInterimTranscript = "";
+          renderSubtitleTranscript();
+        }
+
+        render();
+        processMeetingChunkQueue();
+      });
+  }
+}
+
+async function startStreamCaptureRecording({
+  streamType,
+  acquireStream,
+  inputLabel,
+  listeningMessage,
+  streamEndedMessage,
+}) {
+  resetRecordingSession();
+  shouldKeepListening = true;
+  updateStatus(APP_STATUS.LISTENING);
+  render();
+
+  try {
+    await acquireStream();
+  } catch (error) {
+    shouldKeepListening = false;
+    updateStatus(APP_STATUS.ERROR);
+    render();
+    showToast(error.message, "error");
+    return;
+  }
+
+  const captureStream = streamType === "meeting" ? meetingStream : microphoneStream;
+
+  meetingCapture = createContinuousMeetingCapture({
+    stream: captureStream,
+    windowMs: CONFIG.meetingAudioWindowMs,
+    minWindowMs: CONFIG.meetingAudioMinWindowMs,
+    hopMs: CONFIG.meetingAudioHopMs,
+    minRms: CONFIG.meetingAudioMinRms,
+    skipRmsGate: streamType === "microphone",
+    targetSampleRate: CONFIG.meetingAudioTargetSampleRate,
+    onLevel: updateInputLevelMeter,
+    onChunk: handleMeetingChunk,
+    onStreamEnded: () => {
+      if (shouldKeepListening) {
+        showToast(streamEndedMessage, "info");
+        stopRecording();
+      }
+    },
+  });
+
+  await meetingCapture.start();
+  activeCaptureStreamType = streamType;
+  state.isListening = true;
+  updateStatus(APP_STATUS.LISTENING);
+  render();
+  scheduleCaptureSilenceCheck(inputLabel);
+  showToast(listeningMessage, "info");
+  showToast("Downloading speech model in the background...", "info");
+  beginSpeechModelLoad();
+}
+
+async function startMeetingRecording() {
+  if (!isMeetingAudioSupported()) {
+    showToast("Meeting audio capture is not supported in this browser.", "error");
+    return;
+  }
+
+  await startStreamCaptureRecording({
+    streamType: "meeting",
+    inputLabel: "the shared Teams tab or window",
+    listeningMessage: "Listening to Teams audio until you press Stop.",
+    streamEndedMessage: "Teams share stopped.",
+    async acquireStream() {
+      meetingStream = await acquireMeetingAudioStream();
+    },
+  });
+}
+
+async function startUsbAudioRecording() {
+  const device = getSelectedAudioInputDevice();
+  const inputLabel = device ? formatAudioInputLabel(device) : "USB Audio Device";
+
+  await startStreamCaptureRecording({
+    streamType: "microphone",
+    inputLabel,
+    listeningMessage: `Listening to ${inputLabel}. Watch the input level meter.`,
+    streamEndedMessage: `${inputLabel} input stopped.`,
+    async acquireStream() {
+      microphoneStream = await acquireMicrophoneStream(state.selectedAudioInputId, state.audioInputDevices);
+    },
+  });
+}
+
+async function startRecording() {
+  if (state.audioSource === AUDIO_SOURCE.MEETING) {
+    await startMeetingRecording();
+    return;
+  }
+
+  if (usesStreamCapturePipeline()) {
+    await startUsbAudioRecording();
+    return;
+  }
+
+  if (!isSpeechRecognitionSupported()) {
+    showToast("Speech recognition is not supported in this browser.", "error");
+    return;
+  }
+
+  resetRecordingSession();
+  shouldKeepListening = true;
   let hasShownListeningNotice = false;
 
   recognition = createSpeechRecognition({
@@ -611,10 +1040,12 @@ function startRecording() {
   });
 
   try {
+    await ensureMicrophoneStream();
     recognition.start();
   } catch (error) {
     shouldKeepListening = false;
     clearRecognitionRestartTimer();
+    releaseActiveMicrophone();
     showToast(error.message, "error");
   }
 }
@@ -624,6 +1055,13 @@ function stopRecording() {
   state.isListening = false;
   clearRecognitionRestartTimer();
   recognition?.stop();
+
+  if (activeCaptureStreamType) {
+    stopStreamCaptureRecording();
+  } else {
+    releaseActiveMicrophone();
+  }
+
   updateStatus(state.isTranslating ? APP_STATUS.TRANSLATING : APP_STATUS.READY);
   render();
 }
@@ -633,6 +1071,13 @@ function clearAll() {
   ignoreRecognitionError = true;
   clearRecognitionRestartTimer();
   recognition?.abort?.();
+
+  if (activeCaptureStreamType) {
+    stopStreamCaptureRecording();
+  } else {
+    releaseActiveMicrophone();
+  }
+
   stopSpeech();
   lastTranslatedTranscript = "";
   lastRecognitionFinalTranscript = "";
@@ -721,6 +1166,8 @@ function persistSettings() {
   localStorage.setItem(CONFIG.translationApiKeyStorageKey, elements.apiKey.value.trim());
   localStorage.setItem(CONFIG.autoSpeakStorageKey, String(elements.autoSpeakToggle.checked));
   localStorage.setItem(CONFIG.selectedVoiceStorageKey, elements.voiceSelect.value);
+  localStorage.setItem(CONFIG.selectedAudioInputStorageKey, elements.microphoneSelect.value);
+  localStorage.setItem(CONFIG.selectedAudioSourceStorageKey, elements.audioSourceSelect.value);
 }
 
 function initSettings() {
@@ -732,6 +1179,9 @@ function initSettings() {
     (storedAutoSpeak === null ? CONFIG.defaultAutoSpeak : storedAutoSpeak === "true");
   state.autoSpeak = elements.autoSpeakToggle.checked;
   state.selectedVoiceURI = localStorage.getItem(CONFIG.selectedVoiceStorageKey) || "";
+  state.selectedAudioInputId = localStorage.getItem(CONFIG.selectedAudioInputStorageKey) || "";
+  state.audioSource = localStorage.getItem(CONFIG.selectedAudioSourceStorageKey) || AUDIO_SOURCE.MICROPHONE;
+  elements.audioSourceSelect.value = state.audioSource;
 
   elements.apiEndpoint.addEventListener("change", persistSettings);
   elements.apiKey.addEventListener("change", persistSettings);
@@ -743,6 +1193,92 @@ function initSettings() {
     state.selectedVoiceURI = elements.voiceSelect.value;
     persistSettings();
   });
+  elements.microphoneSelect.addEventListener("change", () => {
+    state.selectedAudioInputId = elements.microphoneSelect.value;
+    persistSettings();
+  });
+  elements.audioSourceSelect.addEventListener("change", () => {
+    state.audioSource = elements.audioSourceSelect.value;
+    persistSettings();
+    renderAudioSourceUi();
+    render();
+  });
+  renderAudioSourceUi();
+}
+
+function applyPreferredAudioInputSelection() {
+  const storedValue = localStorage.getItem(CONFIG.selectedAudioInputStorageKey);
+
+  if (storedValue === "") {
+    return false;
+  }
+
+  if (
+    storedValue &&
+    state.audioInputDevices.some((device) => device.deviceId === storedValue)
+  ) {
+    return false;
+  }
+
+  const preferredDevice = findPreferredAudioInputDevice(state.audioInputDevices);
+
+  if (!preferredDevice) {
+    return false;
+  }
+
+  state.selectedAudioInputId = preferredDevice.deviceId;
+  return true;
+}
+
+function renderMicrophoneOptions() {
+  const fragment = document.createDocumentFragment();
+  const defaultOption = document.createElement("option");
+  defaultOption.value = "";
+  defaultOption.textContent = "System default";
+  fragment.appendChild(defaultOption);
+
+  state.audioInputDevices.forEach((device) => {
+    const option = document.createElement("option");
+    option.value = device.deviceId;
+    const label = formatAudioInputLabel(device);
+
+    if (/usb audio device/i.test(label)) {
+      option.textContent = `${label} (Recommended)`;
+    } else if (isMeetingLoopbackDevice(device)) {
+      option.textContent = `${label} (Teams/Loopback)`;
+    } else if (isUsbAudioDevice(device) && !/usb/i.test(label)) {
+      option.textContent = `${label} (USB)`;
+    } else {
+      option.textContent = label;
+    }
+
+    fragment.appendChild(option);
+  });
+
+  elements.microphoneSelect.replaceChildren(fragment);
+
+  if (applyPreferredAudioInputSelection()) {
+    persistSettings();
+  }
+
+  elements.microphoneSelect.value = state.selectedAudioInputId;
+
+  if (elements.microphoneSelect.value !== state.selectedAudioInputId) {
+    state.selectedAudioInputId = "";
+    persistSettings();
+  }
+
+  if (
+    state.audioSource === AUDIO_SOURCE.MEETING &&
+    getSelectedAudioInputDevice() &&
+    isExternalAudioCaptureDevice(getSelectedAudioInputDevice())
+  ) {
+    state.audioSource = AUDIO_SOURCE.MICROPHONE;
+    elements.audioSourceSelect.value = AUDIO_SOURCE.MICROPHONE;
+    persistSettings();
+  }
+
+  renderAudioSourceUi();
 }
 
 function renderVoiceOptions() {
@@ -804,6 +1340,43 @@ function swapLanguages() {
   showToast(`Switched to ${getLanguage(state.sourceLanguage).name} to ${getLanguage(state.targetLanguage).name}.`, "info");
 }
 
+async function initAudioInput() {
+  if (!isAudioInputSupported()) {
+    showToast("Microphone selection is not supported in this browser.", "error");
+    render();
+    return;
+  }
+
+  state.audioInputDevices = await loadAudioInputDevices();
+  renderMicrophoneOptions();
+  render();
+
+  if (state.audioInputDevices.length === 0) {
+    showToast("No microphones found. Plug in a USB mic and press Refresh.", "error");
+  }
+}
+
+async function refreshMicrophones({ showResult = false } = {}) {
+  if (!isAudioInputSupported()) {
+    showToast("Microphone selection is not supported in this browser.", "error");
+    render();
+    return;
+  }
+
+  state.audioInputDevices = await loadAudioInputDevices();
+  renderMicrophoneOptions();
+  render();
+
+  if (showResult) {
+    const usbCount = state.audioInputDevices.filter(isUsbAudioDevice).length;
+    const message =
+      state.audioInputDevices.length > 0
+        ? `Loaded ${state.audioInputDevices.length} microphone(s)${usbCount ? `, including ${usbCount} USB device(s).` : "."}`
+        : "No microphones found. Check USB connection and browser permission.";
+    showToast(message, state.audioInputDevices.length > 0 ? "success" : "error");
+  }
+}
+
 async function initTextToSpeech() {
   if (!isTextToSpeechSupported()) {
     showToast("Text-to-speech is not supported in this browser.", "error");
@@ -851,14 +1424,17 @@ function init() {
   elements.targetLanguageSelect.addEventListener("change", changeTargetLanguage);
   elements.swapLanguagesButton.addEventListener("click", swapLanguages);
 
-  const supported = isSpeechRecognitionSupported();
-  elements.supportNotice.hidden = supported;
-  setDisabled(elements.recordButton, !supported);
+  const micSupported = isSpeechRecognitionSupported();
+  const meetingSupported = isMeetingAudioSupported();
+  const usbSupported = isAudioInputSupported();
+  elements.supportNotice.hidden = micSupported || meetingSupported || usbSupported;
+  setDisabled(elements.recordButton, !micSupported && !meetingSupported && !usbSupported);
 
   elements.recordButton.addEventListener("click", startRecording);
   elements.stopButton.addEventListener("click", stopRecording);
   elements.speakButton.addEventListener("click", () => speakTranslation());
   elements.refreshVoicesButton.addEventListener("click", () => refreshVoices({ showResult: true }));
+  elements.refreshMicrophonesButton.addEventListener("click", () => refreshMicrophones({ showResult: true }));
   elements.pauseSpeechButton.addEventListener("click", () => {
     pauseSpeech();
     state.isSpeechPaused = true;
@@ -890,7 +1466,14 @@ function init() {
 
   updateStatus(APP_STATUS.READY);
   render();
+  initAudioInput();
   initTextToSpeech();
+
+  if (isAudioInputSupported()) {
+    navigator.mediaDevices.addEventListener("devicechange", () => {
+      refreshMicrophones();
+    });
+  }
 }
 
 init();

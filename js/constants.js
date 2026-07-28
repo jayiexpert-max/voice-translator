@@ -1,11 +1,17 @@
 export const APP_STATUS = {
   READY: "Ready",
   LISTENING: "Listening",
+  TRANSCRIBING: "Transcribing meeting audio",
   TRANSLATING: "Translating",
   SUMMARIZING: "Summarizing",
   SPEAKING: "Speaking",
   PAUSED: "Paused",
   ERROR: "Needs attention",
+};
+
+export const AUDIO_SOURCE = {
+  MICROPHONE: "microphone",
+  MEETING: "meeting",
 };
 
 export const EMPTY_TEXT = {

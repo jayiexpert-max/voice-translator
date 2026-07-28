@@ -40,6 +40,37 @@
           </button>
         </section>
 
+        <section class="input-panel" aria-label="Microphone input">
+          <div class="voice-row">
+            <label for="audioSourceSelect">Audio source</label>
+            <div class="voice-picker">
+              <select id="audioSourceSelect" name="audioSource">
+                <option value="microphone">Microphone / USB Audio Device</option>
+                <option value="meeting">Microsoft Teams / Tab audio</option>
+              </select>
+            </div>
+          </div>
+          <p class="input-hint" id="audioSourceHint">
+            Choose your USB Audio Device or microphone below.
+          </p>
+          <div class="voice-row" id="microphoneRow">
+            <label for="microphoneSelect">Input device</label>
+            <div class="voice-picker">
+              <select id="microphoneSelect" name="microphoneSelect">
+                <option value="">System default</option>
+              </select>
+              <button class="ghost-button compact-button" id="refreshMicrophonesButton" type="button">
+                Refresh
+              </button>
+            </div>
+          </div>
+          <div class="input-level-row" id="inputLevelRow" hidden>
+            <label for="inputLevelMeter">Input level</label>
+            <meter id="inputLevelMeter" min="0" max="0.25" low="0.003" high="0.05" optimum="0.08" value="0"></meter>
+            <span id="inputLevelText">Silent</span>
+          </div>
+        </section>
+
         <section class="language-controls" aria-label="Translation languages">
           <div class="language-field">
             <label for="sourceLanguageSelect">Speak in</label>
@@ -67,7 +98,8 @@
 
         <section class="notice" id="supportNotice" hidden>
           Speech recognition is not supported in this browser. Please use Chrome
-          or Microsoft Edge for the MVP.
+          or Microsoft Edge. For Microsoft Teams audio, choose
+          <strong>Microsoft Teams / Tab audio</strong> as the audio source.
         </section>
 
         <section class="result-grid" aria-label="Translation result">
