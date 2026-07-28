@@ -4,12 +4,13 @@ The Windows `.exe` installer is **not in the source code**. It is built by GitHu
 
 ## Why users see no download yet
 
-1. The Electron wrapper must be on GitHub (`main`). **Done after push.**
-2. Add the GitHub Actions workflow file on github.com (see below).
-3. Push a tag such as `v3.2.0`.
-4. GitHub Actions builds the installer and uploads it to Releases.
+1. The Electron wrapper is on GitHub (`main`). **Done.**
+2. Version labels now show **3.2.0** in the app, README, and CHANGELOG. **Done.**
+3. Add the GitHub Actions workflow file on github.com (see below). **Required for `.exe` builds.**
+4. Push tag `v3.2.0` after the workflow exists.
+5. GitHub Actions builds the installer and uploads it to Releases.
 
-Until step 3–4 complete, the Releases page will have **no `.exe` file**.
+Until steps 3–5 complete, the Releases page will have **no `.exe` file**.
 
 ## Add the build workflow on GitHub (one-time)
 
