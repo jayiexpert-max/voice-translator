@@ -115,8 +115,8 @@ export async function transcribeMeetingAudio(blob, sourceLanguage) {
       language: WHISPER_LANGUAGE[sourceLanguage] || "english",
       task: "transcribe",
       temperature: 0,
-      chunk_length_s: 30,
-      stride_length_s: 5,
+      chunk_length_s: 10,
+      stride_length_s: 2,
     });
 
     return (result?.text || "").trim().replace(/\s+/g, " ");

@@ -48,6 +48,8 @@ import { getElement, setDisabled, setText } from "./utils/dom.js";
 
 const elements = {
   recordButton: getElement("recordButton"),
+  pauseRecordingButton: getElement("pauseRecordingButton"),
+  resumeRecordingButton: getElement("resumeRecordingButton"),
   stopButton: getElement("stopButton"),
   speakButton: getElement("speakButton"),
   pauseSpeechButton: getElement("pauseSpeechButton"),
@@ -74,6 +76,7 @@ const elements = {
   translationCount: getElement("translationCount"),
   summaryOutput: getElement("summaryOutput"),
   summaryCount: getElement("summaryCount"),
+  summaryHeading: getElement("summaryHeading"),
   statusPill: getElement("statusPill"),
   supportNotice: getElement("supportNotice"),
   toastRegion: getElement("toastRegion"),
@@ -101,6 +104,10 @@ let captureAudioDetected = false;
 let captureSilenceTimer = null;
 let speechModelReady = false;
 let speechModelLoading = false;
+let drainingCaptureQueue = false;
+let recordingSessionActive = false;
+let activeCaptureInputLabel = "";
+let activeCaptureStreamEndedMessage = "";
 let shouldKeepListening = false;
 let lastTranslatedTranscript = "";
 let lastRecognitionFinalTranscript = "";
@@ -125,9 +132,10 @@ let lastQueuedTranslationText = "";
 let recognitionRestartTimer = null;
 
 const MAX_SUBTITLE_LINES = 3;
-const INTERIM_TRANSLATION_INTERVAL_MS = 700;
+const INTERIM_TRANSLATION_INTERVAL_MS = 350;
 const INTERIM_TRANSLATION_WORD_LIMIT = 24;
-const MAX_CONCURRENT_TRANSLATIONS = 2;
+const INTERIM_TRANSLATION_CHAR_LIMIT = 72;
+const MAX_CONCURRENT_TRANSLATIONS = 3;
 
 function getStoredEndpoint() {
   return localStorage.getItem(CONFIG.translationEndpointStorageKey) || CONFIG.translationEndpoint;
@@ -155,9 +163,20 @@ function updateCharacterCounts() {
   elements.summaryCount.textContent = `${state.summary.length} characters`;
 }
 
+function getSummaryUiCopy(sourceLanguageCode) {
+  const source = getLanguage(sourceLanguageCode);
+  return {
+    heading: `${source.name} Conversation Summary`,
+    placeholder: `Stop recording, then generate a ${source.name} summary of the full conversation.`,
+    button: `Generate ${source.name} Summary`,
+    successToast: `${source.name} conversation summary created.`,
+  };
+}
+
 function renderLanguageLabels() {
   const source = getLanguage(state.sourceLanguage);
   const target = getLanguage(state.targetLanguage);
+  const summaryCopy = getSummaryUiCopy(state.sourceLanguage);
 
   elements.directionLabel.textContent = `${source.name} speech to ${target.name} text`;
   elements.originalHeading.textContent = `Original ${source.name}`;
@@ -165,15 +184,15 @@ function renderLanguageLabels() {
   elements.playbackHeading.textContent = `${target.name} Speech Playback`;
   elements.copyButton.textContent = `Copy ${target.name} Text`;
   elements.voiceSelect.options[0].textContent = `Auto ${target.name} voice`;
+  elements.summaryHeading.textContent = summaryCopy.heading;
+  elements.summarizeButton.textContent = summaryCopy.button;
 }
 
 function renderSummaryOutput() {
+  const summaryCopy = getSummaryUiCopy(state.sourceLanguage);
+
   if (!state.summary) {
-    setText(
-      elements.summaryOutput,
-      "Stop recording, then generate an English summary of the full conversation.",
-      true,
-    );
+    setText(elements.summaryOutput, summaryCopy.placeholder, true);
     return;
   }
 
@@ -250,8 +269,12 @@ function render() {
   elements.translatedText.scrollTop = elements.translatedText.scrollHeight;
   updateCharacterCounts();
 
-  setDisabled(elements.recordButton, state.isListening || state.isTranslating);
-  setDisabled(elements.stopButton, !state.isListening);
+  setDisabled(elements.recordButton, state.isListening || state.isTranslating || state.isRecordingPaused);
+  setDisabled(elements.pauseRecordingButton, !state.isListening || state.isRecordingPaused);
+  setDisabled(elements.resumeRecordingButton, !state.isRecordingPaused);
+  elements.pauseRecordingButton.hidden = state.isRecordingPaused;
+  elements.resumeRecordingButton.hidden = !state.isRecordingPaused;
+  setDisabled(elements.stopButton, !state.isListening && !state.isRecordingPaused);
   setDisabled(elements.copyButton, !state.translation);
   setDisabled(
     elements.summarizeButton,
@@ -326,7 +349,19 @@ function normalizeTranscript(text) {
 }
 
 function getInterimTranslationWindow(text) {
+  if (state.sourceLanguage === "th") {
+    return text.slice(-INTERIM_TRANSLATION_CHAR_LIMIT).trim();
+  }
+
   return text.split(" ").slice(-INTERIM_TRANSLATION_WORD_LIMIT).join(" ");
+}
+
+function hasEnoughInterimText(text) {
+  if (state.sourceLanguage === "th") {
+    return text.length >= 2;
+  }
+
+  return text.length >= 3;
 }
 
 function getTranscriptDelta(currentFinalTranscript) {
@@ -387,6 +422,20 @@ function hasPendingTranslations() {
 function clearRecognitionRestartTimer() {
   window.clearTimeout(recognitionRestartTimer);
   recognitionRestartTimer = null;
+}
+
+function restartRecognitionImmediately() {
+  if (!shouldKeepListening) {
+    return;
+  }
+
+  clearRecognitionRestartTimer();
+
+  try {
+    recognition?.start();
+  } catch {
+    scheduleRecognitionRestart();
+  }
 }
 
 function scheduleRecognitionRestart() {
@@ -637,6 +686,7 @@ function resetRecordingSession() {
   lastQueuedTranslationText = "";
   meetingChunkQueue = [];
   activeMeetingTranscriptions = 0;
+  drainingCaptureQueue = false;
   ignoreRecognitionError = false;
 }
 
@@ -683,6 +733,16 @@ function beginSpeechModelLoad() {
     });
 }
 
+function maybePreloadSpeechModel() {
+  if (state.isListening || speechModelReady || speechModelLoading) {
+    return;
+  }
+
+  if (state.audioSource === AUDIO_SOURCE.MEETING || usesStreamCapturePipeline()) {
+    beginSpeechModelLoad();
+  }
+}
+
 function usesStreamCapturePipeline() {
   if (state.audioSource === AUDIO_SOURCE.MEETING) {
     return true;
@@ -713,11 +773,48 @@ function scheduleCaptureSilenceCheck(inputLabel) {
   }, 12000);
 }
 
-function stopStreamCaptureRecording() {
+function pauseStreamCapture() {
   meetingCapture?.stop();
   meetingCapture = null;
   clearCaptureSilenceTimer();
+  resetInputLevelMeter();
+}
 
+function getActiveCaptureStream() {
+  return activeCaptureStreamType === "meeting" ? meetingStream : microphoneStream;
+}
+
+async function attachStreamCapture(streamType) {
+  const captureStream = getActiveCaptureStream();
+
+  if (!captureStream) {
+    throw new Error("Audio stream is no longer available. Press Stop, then start recording again.");
+  }
+
+  meetingCapture = createContinuousMeetingCapture({
+    stream: captureStream,
+    windowMs: CONFIG.meetingAudioWindowMs,
+    minWindowMs: CONFIG.meetingAudioMinWindowMs,
+    hopMs: CONFIG.meetingAudioHopMs,
+    minRms: CONFIG.meetingAudioMinRms,
+    skipRmsGate: streamType === "microphone",
+    targetSampleRate: CONFIG.meetingAudioTargetSampleRate,
+    onLevel: updateInputLevelMeter,
+    onChunk: handleMeetingChunk,
+    onStreamEnded: () => {
+      if (shouldKeepListening) {
+        showToast(activeCaptureStreamEndedMessage, "info");
+        stopRecording();
+      }
+    },
+  });
+
+  await meetingCapture.start();
+  activeCaptureStreamType = streamType;
+  scheduleCaptureSilenceCheck(activeCaptureInputLabel);
+}
+
+function releaseCaptureStreams() {
   if (activeCaptureStreamType === "meeting") {
     releaseMeetingAudioStream(meetingStream);
     meetingStream = null;
@@ -726,13 +823,46 @@ function stopStreamCaptureRecording() {
   }
 
   activeCaptureStreamType = null;
+  resetInputLevelMeter();
+}
+
+function resetCaptureProcessingState() {
   meetingChunkQueue = [];
   activeMeetingTranscriptions = 0;
   lastMeetingChunkTranscript = "";
   meetingInterimTranscript = "";
-  speechModelReady = false;
-  speechModelLoading = false;
-  resetInputLevelMeter();
+  drainingCaptureQueue = false;
+}
+
+function stopStreamCaptureRecording({ drainPendingChunks = false } = {}) {
+  meetingCapture?.stop();
+  meetingCapture = null;
+  clearCaptureSilenceTimer();
+  releaseCaptureStreams();
+
+  if (drainPendingChunks && speechModelReady && meetingChunkQueue.length > 0) {
+    drainingCaptureQueue = true;
+    processMeetingChunkQueue();
+    return;
+  }
+
+  resetCaptureProcessingState();
+}
+
+function finishCaptureDrainIfIdle() {
+  if (!drainingCaptureQueue || meetingChunkQueue.length > 0 || activeMeetingTranscriptions > 0) {
+    return;
+  }
+
+  drainingCaptureQueue = false;
+  meetingInterimTranscript = "";
+  renderSubtitleTranscript();
+
+  if (!state.isTranslating && !state.isSpeaking && elements.statusPill.textContent !== APP_STATUS.ERROR) {
+    updateStatus(state.isRecordingPaused ? APP_STATUS.PAUSED : APP_STATUS.READY);
+  }
+
+  render();
 }
 
 function stopMeetingRecording() {
@@ -788,7 +918,7 @@ function handleMeetingChunk(blob) {
 async function transcribeMeetingChunk(blob) {
   const text = normalizeTranscript(await transcribeMeetingAudio(blob, state.sourceLanguage));
 
-  if (!text || !shouldKeepListening || !isPlausibleTranscript(text, state.sourceLanguage)) {
+  if (!text || (!shouldKeepListening && !drainingCaptureQueue) || !isPlausibleTranscript(text, state.sourceLanguage)) {
     return;
   }
 
@@ -816,7 +946,7 @@ function processMeetingChunkQueue() {
   }
 
   while (
-    shouldKeepListening &&
+    (shouldKeepListening || drainingCaptureQueue) &&
     activeMeetingTranscriptions < CONFIG.meetingAudioMaxConcurrentTranscriptions &&
     meetingChunkQueue.length > 0
   ) {
@@ -839,6 +969,12 @@ function processMeetingChunkQueue() {
               ? APP_STATUS.TRANSCRIBING
               : APP_STATUS.LISTENING,
           );
+        } else if (drainingCaptureQueue) {
+          updateStatus(
+            activeMeetingTranscriptions > 0 || meetingChunkQueue.length > 0
+              ? APP_STATUS.TRANSCRIBING
+              : APP_STATUS.READY,
+          );
         }
 
         if (meetingChunkQueue.length === 0 && activeMeetingTranscriptions === 0) {
@@ -848,6 +984,7 @@ function processMeetingChunkQueue() {
 
         render();
         processMeetingChunkQueue();
+        finishCaptureDrainIfIdle();
       });
   }
 }
@@ -859,50 +996,52 @@ async function startStreamCaptureRecording({
   listeningMessage,
   streamEndedMessage,
 }) {
-  resetRecordingSession();
+  if (!recordingSessionActive) {
+    resetRecordingSession();
+  }
+
+  recordingSessionActive = true;
+  state.isRecordingPaused = false;
   shouldKeepListening = true;
+  activeCaptureInputLabel = inputLabel;
+  activeCaptureStreamEndedMessage = streamEndedMessage;
   updateStatus(APP_STATUS.LISTENING);
   render();
 
   try {
-    await acquireStream();
+    if (!activeCaptureStreamType) {
+      await acquireStream();
+    }
   } catch (error) {
     shouldKeepListening = false;
+    recordingSessionActive = false;
     updateStatus(APP_STATUS.ERROR);
     render();
     showToast(error.message, "error");
     return;
   }
 
-  const captureStream = streamType === "meeting" ? meetingStream : microphoneStream;
+  try {
+    await attachStreamCapture(streamType);
+  } catch (error) {
+    shouldKeepListening = false;
+    recordingSessionActive = false;
+    releaseCaptureStreams();
+    updateStatus(APP_STATUS.ERROR);
+    render();
+    showToast(error.message, "error");
+    return;
+  }
 
-  meetingCapture = createContinuousMeetingCapture({
-    stream: captureStream,
-    windowMs: CONFIG.meetingAudioWindowMs,
-    minWindowMs: CONFIG.meetingAudioMinWindowMs,
-    hopMs: CONFIG.meetingAudioHopMs,
-    minRms: CONFIG.meetingAudioMinRms,
-    skipRmsGate: streamType === "microphone",
-    targetSampleRate: CONFIG.meetingAudioTargetSampleRate,
-    onLevel: updateInputLevelMeter,
-    onChunk: handleMeetingChunk,
-    onStreamEnded: () => {
-      if (shouldKeepListening) {
-        showToast(streamEndedMessage, "info");
-        stopRecording();
-      }
-    },
-  });
-
-  await meetingCapture.start();
-  activeCaptureStreamType = streamType;
   state.isListening = true;
   updateStatus(APP_STATUS.LISTENING);
   render();
-  scheduleCaptureSilenceCheck(inputLabel);
   showToast(listeningMessage, "info");
-  showToast("Downloading speech model in the background...", "info");
-  beginSpeechModelLoad();
+
+  if (!speechModelReady && !speechModelLoading) {
+    showToast("Downloading speech model in the background...", "info");
+    beginSpeechModelLoad();
+  }
 }
 
 async function startMeetingRecording() {
@@ -938,6 +1077,11 @@ async function startUsbAudioRecording() {
 }
 
 async function startRecording() {
+  if (state.isRecordingPaused) {
+    await resumeRecording();
+    return;
+  }
+
   if (state.audioSource === AUDIO_SOURCE.MEETING) {
     await startMeetingRecording();
     return;
@@ -954,6 +1098,8 @@ async function startRecording() {
   }
 
   resetRecordingSession();
+  recordingSessionActive = true;
+  state.isRecordingPaused = false;
   shouldKeepListening = true;
   let hasShownListeningNotice = false;
 
@@ -969,7 +1115,7 @@ async function startRecording() {
 
       if (!hasShownListeningNotice) {
         hasShownListeningNotice = true;
-        showToast("Listening until you press Stop.", "info");
+        showToast("Listening until you press Pause or Stop.", "info");
       }
     },
     onResult: ({ finalTranscript, interimTranscript, isFinal }) => {
@@ -980,7 +1126,7 @@ async function startRecording() {
       const now = Date.now();
       const interimWindow = getInterimTranslationWindow(normalizedInterimTranscript);
       if (
-        interimWindow.length >= 3 &&
+        hasEnoughInterimText(interimWindow) &&
         interimWindow !== lastQueuedTranslationText &&
         now - lastInterimTranslationAt >= INTERIM_TRANSLATION_INTERVAL_MS
       ) {
@@ -1008,13 +1154,14 @@ async function startRecording() {
     },
     onEnd: () => {
       if (shouldKeepListening) {
-        scheduleRecognitionRestart();
-
+        restartRecognitionImmediately();
         return;
       }
 
       state.isListening = false;
-      if (!state.isTranslating && !state.isSpeaking && elements.statusPill.textContent !== APP_STATUS.ERROR) {
+      if (state.isRecordingPaused) {
+        updateStatus(APP_STATUS.PAUSED);
+      } else if (!state.isTranslating && !state.isSpeaking && elements.statusPill.textContent !== APP_STATUS.ERROR) {
         updateStatus(APP_STATUS.READY);
       }
       render();
@@ -1026,7 +1173,7 @@ async function startRecording() {
       }
 
       if (shouldKeepListening && isRecoverableRecognitionError(error.code)) {
-        scheduleRecognitionRestart();
+        restartRecognitionImmediately();
         return;
       }
 
@@ -1050,30 +1197,108 @@ async function startRecording() {
   }
 }
 
-function stopRecording() {
+function pauseRecording() {
+  if (!state.isListening || state.isRecordingPaused) {
+    return;
+  }
+
   shouldKeepListening = false;
   state.isListening = false;
+  state.isRecordingPaused = true;
   clearRecognitionRestartTimer();
+  ignoreRecognitionError = true;
   recognition?.stop();
 
   if (activeCaptureStreamType) {
-    stopStreamCaptureRecording();
+    const shouldDrainPendingChunks =
+      speechModelReady && (meetingChunkQueue.length > 0 || activeMeetingTranscriptions > 0);
+    pauseStreamCapture();
+
+    if (shouldDrainPendingChunks) {
+      drainingCaptureQueue = true;
+      processMeetingChunkQueue();
+      updateStatus(APP_STATUS.TRANSCRIBING);
+    } else {
+      updateStatus(APP_STATUS.PAUSED);
+    }
+  } else {
+    updateStatus(APP_STATUS.PAUSED);
+  }
+
+  showToast("Recording paused. Press Resume to continue or Stop to finish.", "info");
+  render();
+}
+
+async function resumeRecording() {
+  if (!state.isRecordingPaused) {
+    return;
+  }
+
+  state.isRecordingPaused = false;
+  shouldKeepListening = true;
+
+  try {
+    if (activeCaptureStreamType) {
+      await attachStreamCapture(activeCaptureStreamType);
+    } else if (recognition) {
+      await ensureMicrophoneStream();
+      recognition.start();
+    } else {
+      throw new Error("Recording session expired. Press Stop, then start again.");
+    }
+
+    state.isListening = true;
+    updateStatus(APP_STATUS.LISTENING);
+    showToast("Recording resumed.", "success");
+  } catch (error) {
+    shouldKeepListening = false;
+    state.isRecordingPaused = true;
+    updateStatus(APP_STATUS.ERROR);
+    showToast(error.message, "error");
+  }
+
+  render();
+}
+
+function stopRecording() {
+  shouldKeepListening = false;
+  state.isListening = false;
+  state.isRecordingPaused = false;
+  recordingSessionActive = false;
+  clearRecognitionRestartTimer();
+  ignoreRecognitionError = true;
+  recognition?.stop();
+
+  if (activeCaptureStreamType) {
+    const shouldDrainPendingChunks =
+      speechModelReady && (meetingChunkQueue.length > 0 || activeMeetingTranscriptions > 0);
+    stopStreamCaptureRecording({ drainPendingChunks: shouldDrainPendingChunks });
+
+    if (shouldDrainPendingChunks) {
+      updateStatus(APP_STATUS.TRANSCRIBING);
+    }
   } else {
     releaseActiveMicrophone();
   }
 
-  updateStatus(state.isTranslating ? APP_STATUS.TRANSLATING : APP_STATUS.READY);
+  if (!drainingCaptureQueue) {
+    updateStatus(state.isTranslating ? APP_STATUS.TRANSLATING : APP_STATUS.READY);
+  }
+
   render();
 }
 
 function clearAll() {
   shouldKeepListening = false;
+  state.isRecordingPaused = false;
+  recordingSessionActive = false;
   ignoreRecognitionError = true;
   clearRecognitionRestartTimer();
   recognition?.abort?.();
 
   if (activeCaptureStreamType) {
     stopStreamCaptureRecording();
+    resetCaptureProcessingState();
   } else {
     releaseActiveMicrophone();
   }
@@ -1112,18 +1337,13 @@ async function generateSummary() {
   render();
 
   try {
-    const sourceIsEnglish = state.sourceLanguage === "en";
-    const hasCompleteEnglishTranslation =
-      state.targetLanguage === "en" && fullTranslationLines.length === fullTranscriptLines.length;
-
-    if (!sourceIsEnglish && !hasCompleteEnglishTranslation) {
-      throw new Error("A complete English translation is required before generating the summary.");
-    }
+    const source = getLanguage(state.sourceLanguage);
 
     state.summary = await summarizeConversation({
-      segments: sourceIsEnglish ? fullTranscriptLines : fullTranslationLines,
+      segments: fullTranscriptLines,
+      language: state.sourceLanguage,
     });
-    showToast("English conversation summary created.", "success");
+    showToast(`${source.name} conversation summary created.`, "success");
   } catch (error) {
     updateStatus(APP_STATUS.ERROR);
     showToast(error.message, "error");
@@ -1196,14 +1416,17 @@ function initSettings() {
   elements.microphoneSelect.addEventListener("change", () => {
     state.selectedAudioInputId = elements.microphoneSelect.value;
     persistSettings();
+    maybePreloadSpeechModel();
   });
   elements.audioSourceSelect.addEventListener("change", () => {
     state.audioSource = elements.audioSourceSelect.value;
     persistSettings();
     renderAudioSourceUi();
     render();
+    maybePreloadSpeechModel();
   });
   renderAudioSourceUi();
+  maybePreloadSpeechModel();
 }
 
 function applyPreferredAudioInputSelection() {
@@ -1431,6 +1654,8 @@ function init() {
   setDisabled(elements.recordButton, !micSupported && !meetingSupported && !usbSupported);
 
   elements.recordButton.addEventListener("click", startRecording);
+  elements.pauseRecordingButton.addEventListener("click", pauseRecording);
+  elements.resumeRecordingButton.addEventListener("click", resumeRecording);
   elements.stopButton.addEventListener("click", stopRecording);
   elements.speakButton.addEventListener("click", () => speakTranslation());
   elements.refreshVoicesButton.addEventListener("click", () => refreshVoices({ showResult: true }));

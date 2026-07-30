@@ -31,11 +31,32 @@
         </header>
 
         <section class="controls" aria-label="Recording controls">
-          <button class="primary-button" id="recordButton" type="button">
-            <span class="button-icon" aria-hidden="true"></span>
+          <button class="primary-button record-button" id="recordButton" type="button">
+            <svg class="button-icon mic-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Z" />
+              <path d="M19 11v1a7 7 0 0 1-14 0v-1" />
+              <path d="M12 18v3" />
+              <path d="M8 21h8" />
+            </svg>
             Start Recording
           </button>
-          <button class="secondary-button" id="stopButton" type="button" disabled>
+          <button class="secondary-button control-button" id="pauseRecordingButton" type="button" disabled>
+            <svg class="button-icon pause-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M8 6h3v12H8z" />
+              <path d="M13 6h3v12h-3z" />
+            </svg>
+            Pause
+          </button>
+          <button class="secondary-button control-button" id="resumeRecordingButton" type="button" disabled hidden>
+            <svg class="button-icon play-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M9 7v10l9-5-9-5z" />
+            </svg>
+            Resume
+          </button>
+          <button class="secondary-button control-button stop-button" id="stopButton" type="button" disabled>
+            <svg class="button-icon stop-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <rect x="7" y="7" width="10" height="10" rx="1.5" />
+            </svg>
             Stop
           </button>
         </section>
@@ -145,7 +166,7 @@
           <div class="panel-heading">
             <div>
               <p class="summary-kicker">Session notes</p>
-              <h2 id="summaryHeading">English Conversation Summary</h2>
+              <h2 id="summaryHeading">Conversation Summary</h2>
             </div>
             <span id="summaryCount">0 characters</span>
           </div>
@@ -153,10 +174,10 @@
             class="summary-output placeholder"
             id="summaryOutput"
             aria-live="polite"
-          >Stop recording, then generate an English summary of the full conversation.</div>
+          >Stop recording, then generate a summary of the full conversation in the input language.</div>
           <div class="summary-actions">
             <button class="primary-button" id="summarizeButton" type="button" disabled>
-              Generate English Summary
+              Generate Summary
             </button>
             <button class="secondary-button" id="exportSummaryButton" type="button" disabled>
               Export for AI (.md)

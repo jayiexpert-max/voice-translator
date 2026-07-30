@@ -1,26 +1,41 @@
 const MAX_KEY_POINTS = 5;
 const MAX_OVERVIEW_POINTS = 2;
 
-const LABELS = {
-  title: "Conversation Summary",
-  generated: "Generated",
-  overview: "Overview",
-  keyPoints: "Key Points",
-  actionItems: "Action Items",
-  noActions: "No explicit action items detected.",
+const LABELS_BY_LANGUAGE = {
+  en: {
+    title: "Conversation Summary",
+    generated: "Generated",
+    overview: "Overview",
+    keyPoints: "Key Points",
+    actionItems: "Action Items",
+    noActions: "No explicit action items detected.",
+  },
+  th: {
+    title: "สรุปการสนทนา",
+    generated: "สร้างเมื่อ",
+    overview: "ภาพรวม",
+    keyPoints: "ประเด็นสำคัญ",
+    actionItems: "รายการที่ต้องดำเนินการ",
+    noActions: "ไม่พบรายการที่ต้องดำเนินการอย่างชัดเจน",
+  },
 };
+
+function getSummaryLabels(languageCode) {
+  return LABELS_BY_LANGUAGE[languageCode] || LABELS_BY_LANGUAGE.en;
+}
 
 const ACTION_PATTERN = /\b(?:need to|should|must|will|please|todo|follow up|action)\b|(?:ต้อง|ควร|จะ|กรุณา|ติดตาม|ดำเนินการ)/i;
 
-export async function summarizeConversation({ segments, generatedAt = new Date() }) {
+export async function summarizeConversation({
+  segments,
+  language = "en",
+  generatedAt = new Date(),
+}) {
   const normalizedSegments = getUniqueSegments(segments);
+  const labels = getSummaryLabels(language);
 
   if (normalizedSegments.length === 0) {
     throw new Error("There is no conversation to summarize.");
-  }
-
-  if (normalizedSegments.some((segment) => /[\u0E00-\u0E7F]/.test(segment))) {
-    throw new Error("A complete English transcript is required before generating the summary.");
   }
 
   const keyPoints = selectEvenly(normalizedSegments, MAX_KEY_POINTS);
@@ -28,22 +43,22 @@ export async function summarizeConversation({ segments, generatedAt = new Date()
   const actionItems = normalizedSegments.filter((segment) => ACTION_PATTERN.test(segment)).slice(0, 5);
   const actionMarkdown = actionItems.length > 0
     ? actionItems.map((item) => `- ${item}`).join("\n")
-    : `- ${LABELS.noActions}`;
+    : `- ${labels.noActions}`;
 
   return [
-    `# ${LABELS.title}`,
+    `# ${labels.title}`,
     "",
-    `> ${LABELS.generated}: ${generatedAt.toISOString()}`,
+    `> ${labels.generated}: ${generatedAt.toISOString()}`,
     "",
-    `## ${LABELS.overview}`,
+    `## ${labels.overview}`,
     "",
     overview,
     "",
-    `## ${LABELS.keyPoints}`,
+    `## ${labels.keyPoints}`,
     "",
     ...keyPoints.map((point) => `- ${point}`),
     "",
-    `## ${LABELS.actionItems}`,
+    `## ${labels.actionItems}`,
     "",
     actionMarkdown,
   ].join("\n");
@@ -69,21 +84,21 @@ export function buildAiSummaryPackage({
     `source_language: ${sourceLanguage}`,
     `target_language: ${targetLanguage}`,
     `generated_at: ${generatedAt.toISOString()}`,
-    "required_output_language: English",
+    `required_output_language: ${sourceLanguage}`,
     "---",
     "",
     "# Conversation Summary Review Package",
     "",
     "## Instructions for AI",
     "",
-    "- Produce the final answer in English only.",
+    `- Produce the final answer in ${sourceLanguage} only.`,
     "- Review the complete original transcript before relying on the preliminary summary.",
-    "- Translate non-English content when needed.",
+    "- Translate content when needed to match the required output language.",
     "- Correct omissions, duplicated ideas, mistranslations, and unsupported conclusions.",
     "- Return: Executive Summary, Key Points, Decisions, Action Items, and Open Questions.",
     "- Clearly state when a decision, owner, deadline, or action item is not explicit in the transcript.",
     "",
-    "## Preliminary English Summary",
+    `## Preliminary Summary (${sourceLanguage})`,
     "",
     reviewSummary,
     "",

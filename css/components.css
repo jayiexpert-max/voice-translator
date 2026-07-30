@@ -125,14 +125,34 @@ h2 {
   filter: brightness(1.08);
 }
 
+.record-button,
+.control-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .button-icon {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  margin-right: 8px;
-  border-radius: 50%;
-  background: #061112;
-  vertical-align: 1px;
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.stop-icon {
+  fill: currentColor;
+  stroke: none;
+}
+
+.pause-icon path,
+.play-icon path {
+  fill: currentColor;
+  stroke: none;
 }
 
 .text-output {

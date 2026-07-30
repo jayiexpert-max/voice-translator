@@ -6,6 +6,7 @@ export const state = {
   isSummarizing: false,
   isSpeaking: false,
   isSpeechPaused: false,
+  isRecordingPaused: false,
   autoSpeak: CONFIG.defaultAutoSpeak,
   selectedVoiceURI: "",
   selectedAudioInputId: "",
@@ -26,6 +27,7 @@ export function resetState() {
   state.isSummarizing = false;
   state.isSpeaking = false;
   state.isSpeechPaused = false;
+  state.isRecordingPaused = false;
   state.transcript = "";
   state.translation = "";
   state.summary = "";
