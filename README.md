@@ -4,7 +4,19 @@ Version 3.2 browser and desktop English and Thai voice translator.
 
 **Version 3.2.0** · Design by **JayOverlay**
 
-## Current Scope
+## Live App
+
+**Use in your browser — no download required:**
+
+**https://voice-translator-sage.vercel.app/**
+
+1. Open the link above in **Chrome** or **Microsoft Edge** (desktop recommended).
+2. Allow microphone access when prompted.
+3. Press **Start Recording** and speak.
+
+For Microsoft Teams or tab audio, choose **Microsoft Teams / Tab audio** as the audio source.
+
+## Install on Windows (Desktop App — Optional)
 
 Two-way English and Thai voice translation:
 
@@ -25,9 +37,9 @@ Two-way English and Thai voice translation:
 - Show loading, status, and toast messages.
 - Select microphone or USB Audio Device input.
 - Capture Microsoft Teams or tab audio for translation.
-- Install on Windows through the Electron desktop app and GitHub Releases.
+- Install on Windows through the Electron desktop app and GitHub Releases (optional — the [live web app](https://voice-translator-sage.vercel.app/) works without a download).
 
-## Install on Windows (Desktop App)
+## Current Scope
 
 Download the latest `.exe` installer from [GitHub Releases](https://github.com/jayiexpert-max/voice-translator/releases):
 

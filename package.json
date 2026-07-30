@@ -4,6 +4,7 @@
   "description": "AI Voice Translator desktop app for English and Thai speech translation",
   "author": "JayOverlay",
   "license": "MIT",
+  "homepage": "https://voice-translator-sage.vercel.app/",
   "main": "electron/main.js",
   "scripts": {
     "desktop:dev": "electron .",

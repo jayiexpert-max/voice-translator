@@ -1,8 +1,10 @@
 # Desktop Release Guide
 
-The Windows `.exe` installer is **not in the source code**. It is built by GitHub Actions and published to GitHub Releases when a maintainer pushes a version tag.
+Use the web app at **https://voice-translator-sage.vercel.app/** — no download required.
 
-## Why users see no download yet
+The Windows `.exe` installer is optional. It is **not in the source code**. GitHub Actions builds it and publishes to GitHub Releases when a maintainer pushes a version tag.
+
+## Why users see no `.exe` download yet
 
 1. The Electron wrapper is on GitHub (`main`). **Done.**
 2. Version labels now show **3.2.0** in the app, README, and CHANGELOG. **Done.**
