@@ -156,8 +156,8 @@ h2 {
 }
 
 .text-output {
-  min-height: 172px;
-  max-height: 260px;
+  min-height: 200px;
+  max-height: min(42vh, 560px);
   overflow-y: auto;
   overflow-wrap: anywhere;
   color: #f6fbfa;

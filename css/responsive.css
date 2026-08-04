@@ -1,3 +1,37 @@
+@media (min-width: 1440px) {
+  .app-shell {
+    padding: 28px 40px;
+  }
+
+  .translator {
+    padding: 32px 44px;
+  }
+
+  .text-panel {
+    min-height: 320px;
+  }
+
+  .text-output {
+    min-height: 240px;
+    max-height: min(48vh, 680px);
+  }
+}
+
+@media (max-width: 1024px) {
+  .app-shell {
+    padding: 20px 24px;
+  }
+
+  .translator {
+    min-height: calc(100vh - 40px);
+    padding: 24px 28px;
+  }
+
+  .text-output {
+    max-height: min(36vh, 420px);
+  }
+}
+
 @media (max-width: 760px) {
   .app-shell {
     align-items: stretch;
@@ -5,6 +39,7 @@
   }
 
   .translator {
+    min-height: calc(100vh - 28px);
     padding: 22px;
   }
 
@@ -26,6 +61,11 @@
 
   .text-panel {
     min-height: 220px;
+  }
+
+  .text-output {
+    min-height: 160px;
+    max-height: 240px;
   }
 
   .summary-output:not(.placeholder) {
@@ -59,8 +99,14 @@
 }
 
 @media (max-width: 420px) {
+  .app-shell {
+    padding: 10px;
+  }
+
   .translator {
-    padding: 18px;
+    min-height: calc(100vh - 20px);
+    padding: 16px;
+    border-radius: 6px;
   }
 
   .panel-heading {
@@ -69,6 +115,8 @@
   }
 
   .text-output {
+    min-height: 140px;
+    max-height: 200px;
     font-size: 1.05rem;
   }
 }

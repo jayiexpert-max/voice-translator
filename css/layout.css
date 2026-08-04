@@ -1,14 +1,17 @@
 .app-shell {
   display: grid;
+  width: 100%;
   min-height: 100vh;
-  place-items: center;
-  padding: 32px;
+  align-items: stretch;
+  padding: 24px 32px;
 }
 
 .translator {
-  width: min(960px, 100%);
+  width: 100%;
+  max-width: none;
+  min-height: calc(100vh - 48px);
   border-radius: 8px;
-  padding: 32px;
+  padding: 28px 36px;
 }
 
 .app-header {
@@ -50,7 +53,7 @@
 }
 
 .text-panel {
-  min-height: 260px;
+  min-height: 280px;
   border-radius: 8px;
   padding: 20px;
 }
